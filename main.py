@@ -1,273 +1,169 @@
-import openai
-import os
 import tkinter as tk
-from tkinter import ttk
+import os
+import openai
+import tkinter.messagebox
+import customtkinter
+import asyncio
+import aiohttp
+
+customtkinter.set_appearance_mode("System")
+customtkinter.set_default_color_theme("blue")
 
 
-MAX_TOKENS = 1000
-ROLE = 'Assistant'
-MODEL = 'gpt-3.5-turbo'
-TEMPERATURE = 0.5
-
-
-class ChatHistory(ttk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent)
-        tk.Button(self, text='New Chat', font=('Arial', 16), background='#F5F5F5', padx=10, pady=10).pack(fill='both', side='top')
-        tk.Button(self, text='Chat 2', font=('Arial', 16), background='#F5F5F5', padx=10, pady=10).pack(fill='both', side='top', pady=(30, 0))
-        tk.Button(self, text='Chat 3', font=('Arial', 16), background='#F5F5F5', padx=10, pady=10).pack(fill='both', side='top')
-        tk.Button(self, text='Chat 4', font=('Arial', 16), background='#F5F5F5', padx=10, pady=10).pack(fill='both', side='top')
-        tk.Button(self, text='Chat 5', font=('Arial', 16), background='#F5F5F5', padx=10, pady=10).pack(fill='both', side='top')
-        tk.Button(self, text='Chat 6', font=('Arial', 16), background='#F5F5F5', padx=10, pady=10).pack(fill='both', side='top')
-        tk.Button(self, text='Chat 7', font=('Arial', 16), background='#F5F5F5', padx=10, pady=10).pack(fill='both', side='top')
-        tk.Button(self, text='Chat 8', font=('Arial', 16), background='#F5F5F5', padx=10, pady=10).pack(fill='both', side='top')
-        tk.Button(self, text='Chat 9', font=('Arial', 16), background='#F5F5F5', padx=10, pady=10).pack(fill='both', side='top')
-        self.pack(fill='both', side='left')
-
-
-class ChatSpace(ttk.Frame):
-
-    # Debug, remove later, THIS IS FINE:
-    def on_combobox_change(self, event):
-        global MODEL
-        MODEL = self.model.get()
-
-    def __init__(self, parent):
-        super().__init__(parent)
-        chat_label_frame = ttk.Frame(self)
-
-        # Selected Model:
-        selected_model_label = tk.Label(chat_label_frame, background='#F5F5F5', font=('Arial', 16), text='Selected Model:')
-        selected_model_label.pack(fill='both', side='left', padx=30, pady=30)
-        options = ["gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-4", "gpt-4-32k"]
-        self.model = ttk.Combobox(chat_label_frame, values=options)
-        self.model.set(options[0])
-        self.model.pack(fill='both', side='left', padx=30, pady=30)
-        self.model.bind("<<ComboboxSelected>>", self.on_combobox_change)
-        chat_label_frame.pack(fill='both', side='top')
-
-        # Chat space:
-        chat_space_frame = ttk.Frame(self)
-        self.chat_space = tk.Message(chat_space_frame, background='#F5F5F5', font=('Arial', 16), text='Hello World',
-                                anchor=tk.NW)
-        self.chat_space.pack(expand=True, fill='both', side='top', padx=30, pady=30)
-        chat_space_frame.pack(fill='both', side='top')
-
-        # Pack Chat Space:
-        self.pack(fill='both', side='top', expand=True)
-
-
-class OptionsBar(ttk.Frame):
-    def on_max_tokens_changed(self, event):
-        global MAX_TOKENS
-        MAX_TOKENS = int(self.max_tokens_textbox.get('1.0', tk.END))
-
-    def on_temperature_change(self, value):
-        rounded_value = round(float(value), 2)
-        self.temperature_value['text'] = str(format(rounded_value, '.2f'))
-        global TEMPERATURE
-        TEMPERATURE = rounded_value
-
-    def __init__(self, parent):
-        super().__init__(parent)
-
-        # Temperature:
-        temperature_frame = ttk.Frame(self)
-        temperature_label = ttk.Label(temperature_frame, text='Temperature: ')
-        temperature_label.pack(side='left', padx=10, pady=10)
-        temperature_slider = ttk.Scale(temperature_frame, from_=0, to=2.0, value=0.5, orient=tk.HORIZONTAL, command=self.on_temperature_change)
-        temperature_slider.pack(fill='both', side='left', padx=10, pady=10)
-        self.temperature_value = (tk.Label(temperature_frame, text='0.50'))
-        self.temperature_value.pack(side='left', padx=10, pady=10)
-        temperature_frame.pack(fill='both', side='top')
-
-        # Max Tokens:
-        max_tokens_frame = ttk.Frame(self)
-        max_tokens_label = ttk.Label(max_tokens_frame, text='Max Tokens:')
-        max_tokens_label.pack(side='left', padx=10, pady=10)
-        self.max_tokens_textbox = tk.Text(max_tokens_frame, height=1, width=7, font=('Arial', 16), background='#F5F5F5', padx=10, pady=10, relief=tk.FLAT, borderwidth=1, highlightthickness=1)
-        self.max_tokens_textbox.insert(tk.END, str(MAX_TOKENS))
-        self.max_tokens_textbox.pack(side='left', padx=10, pady=10)
-        self.max_tokens_textbox.bind('<KeyRelease>', self.on_max_tokens_changed)
-        max_tokens_frame.pack(side='top')
-
-        # Role:
-        role_label = ttk.Label(self, text='Role:', font=('Arial', 16))
-        role_label.pack(side='top', padx=10)
-
-        role_textbox = tk.Text(self, height=5, width=20, font=('Arial', 16), background='#F5F5F5', padx=10, pady=10, relief=tk.FLAT, borderwidth=2, highlightthickness=2)
-        role_textbox.insert(tk.END, str(ROLE))
-        role_textbox.pack(side='top', padx=10, pady=10)
-
-        # Role Binds:
-        role_binds_row_1_frame = ttk.Frame(self)
-        button_1 = tk.Button(role_binds_row_1_frame, font=('Arial', 16), background='red', padx=5, pady=5)
-        button_1.pack(side='left', padx=10, pady=10)
-        button_2 = tk.Button(role_binds_row_1_frame, font=('Arial', 16), background='red', padx=5, pady=5)
-        button_2.pack(side='left', padx=10, pady=10)
-        button_3 = tk.Button(role_binds_row_1_frame, font=('Arial', 16), background='red', padx=5, pady=5)
-        button_3.pack(side='left', padx=10, pady=10)
-        role_binds_row_1_frame.pack(side='top')
-
-        role_binds_row_2_frame = ttk.Frame(self)
-        button_4 = tk.Button(role_binds_row_2_frame, font=('Arial', 16), background='red', padx=5, pady=5)
-        button_4.pack(side='left', padx=10, pady=10)
-        button_5 = tk.Button(role_binds_row_2_frame, font=('Arial', 16), background='red', padx=5, pady=5)
-        button_5.pack(side='left', padx=10, pady=10)
-        button_6 = tk.Button(role_binds_row_2_frame, font=('Arial', 16), background='red', padx=5, pady=5)
-        button_6.pack(side='left', padx=10, pady=10)
-        role_binds_row_2_frame.pack(side='top')
-
-        # Pack OptionsBar
-        self.pack(fill='y', side='right')
-
-
-class Input(ttk.Frame):
-    def submit_prompt(self):
-        prompt = (self.textbox.get('1.0', tk.END))
-        openai.api_key = os.getenv("OPENAI_API_KEY")
-        completion = openai.ChatCompletion.create(
-            model=MODEL,
-            max_tokens=MAX_TOKENS,
-            temperature=TEMPERATURE,
-            messages=[
-                {"role": "system", "content": ROLE},
-                {"role": "user", "content": prompt}
-            ]
-        )
-
-        response_message = completion.choices[0].message
-        response_content = response_message["content"]
-
-
-    def __init__(self, parent):
-        super().__init__(parent)
-        input_frame = ttk.Frame(self)
-        self.textbox = tk.Text(input_frame, background='#F5F5F5', font=('Arial', 16), height=3)
-        self.textbox.pack(fill='both', side='left', padx=30, pady=30)
-        submit = tk.Button(input_frame, text='Send', font=('Arial', 16), background='Green', padx=10, pady=10, command=self.submit_prompt)
-        submit.pack(fill='both', side='right', padx=20, pady=30)
-        input_frame.pack(fill='both', side='left')
-
-        # Pack Input
-        self.pack(fill='both', side='bottom')
-
-
-class App(tk.Tk):
+class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
-        self.title('OpenAI API Interface')
-        self.geometry('1600x800')
 
-        # ChatsBar
-        self.chats_bar = ChatHistory(self)
+        # Configure window:
+        self.title("OpenAI API Interface")
+        self.geometry(f"{1200}x{600}")
+        self.minsize(1100, 580)
 
-        # OptionsBar
-        self.options_bar = OptionsBar(self)
+        # Configure grid layout (4x4):
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure((2, 3), weight=0)
+        self.grid_rowconfigure((0, 1, 2), weight=1)
 
-        # Input
-        self.input = Input(self)
+        # Create chat history frame:
+        self.chat_history_frame = customtkinter.CTkFrame(self, width=140, corner_radius=0)
+        self.chat_history_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
+        self.chat_history_frame.grid_rowconfigure(4, weight=1)
+        self.new_chat_button = customtkinter.CTkButton(self.chat_history_frame, command=self.new_chat_click)
+        self.new_chat_button.grid(row=1, column=0)
+        self.theme_mode_label = customtkinter.CTkLabel(self.chat_history_frame, text="Appearance Mode:", anchor="w")
+        self.theme_mode_label.grid(row=5, column=0, padx=20, pady=(10, 0))
+        self.theme_mode_options = customtkinter.CTkOptionMenu(self.chat_history_frame, values=["Light", "Dark", "System"],
+                                                              command=self.change_theme_mode)
+        self.theme_mode_options.grid(row=6, column=0, padx=20, pady=(10, 10))
 
-        # ChatSpace
-        self.chat_space = ChatSpace(self)
+        # Create input and send button:
+        self.input = customtkinter.CTkTextbox(self, height=60)
+        self.input.grid(row=3, column=1, columnspan=2, padx=(20, 0), pady=(20, 20), sticky="nsew")
+        self.input.bind("<FocusIn>", self.on_input_focus_in)
+        self.input.bind("<FocusOut>", self.on_input_focus_out)
+        self.send_button = customtkinter.CTkButton(master=self, fg_color="transparent", border_width=2, text_color=("gray10", "#DCE4EE"), text="Send", command=self.on_send_button_click)
+        self.bind("<Return>", lambda event: self.enter_clicked(event))
+        self.send_button.grid(row=3, column=3, padx=(20, 20), pady=(20, 20), sticky="nsew")
 
-        # run
-        self.mainloop()
+        # Create chat space frame
+        self.chat_space_frame = customtkinter.CTkFrame(self)
+        self.chat_space_frame.grid(row=0, column=1, rowspan=3, columnspan=2, padx=(20, 0), pady=(20, 0), sticky="nsew")
+        self.selected_model_label = customtkinter.CTkLabel(self.chat_space_frame, text="Selected Model:", anchor="center")
+        self.selected_model_label.grid(row=0, column=0, padx=20, pady=(10, 10), sticky='ne')
+        self.selected_model_options = customtkinter.CTkOptionMenu(self.chat_space_frame, values=["gpt-3.5-turbo", "gpt-3.5-turbo-16k"], command=self.change_model_event)
+        self.selected_model_options.grid(row=0, column=1, padx=20, pady=(10, 10), sticky='nw')
+        self.chat_space = customtkinter.CTkTextbox(self.chat_space_frame, wrap="word")
+        self.chat_space.grid(row=1, rowspan=2, column=0, columnspan=3, padx=(20, 0), pady=(20, 0), sticky="nsew")
+        self.chat_space_frame.grid_rowconfigure(1, weight=1)
+        self.chat_space_frame.grid_columnconfigure(2, weight=1)
+
+        # Create options frame:
+        self.options_frame = customtkinter.CTkFrame(self)
+        self.options_frame.grid(row=0, rowspan=3, column=3, padx=(20, 20), pady=(20, 0), sticky="nsew")
+
+        # Max tokens and temperature:
+        self.max_tokens_label = customtkinter.CTkLabel(self.options_frame, text="Max Tokens:", anchor="center")
+        self.max_tokens_label.grid(row=0, column=0, padx=(10, 5), pady=10, sticky='ne')
+        self.max_tokens_entry = customtkinter.CTkEntry(self.options_frame, textvariable=tkinter.StringVar(value="1000"))
+        self.max_tokens_entry.grid(row=0, column=1, padx=5, pady=10, sticky='nw')
+        self.temperature_label = customtkinter.CTkLabel(self.options_frame, text="Temperature:", anchor="center")
+        self.temperature_label.grid(row=1, column=0, padx=(10, 5), pady=10, sticky='ne')
+        self.temperature_sidebar = customtkinter.CTkSlider(self.options_frame, from_=0, to=2)
+        self.temperature_sidebar.grid(row=1, column=1, padx=5, pady=10, sticky='nw')
+        self.temperature_value_label = customtkinter.CTkLabel(self.options_frame, text="1.00", anchor="center")
+        self.temperature_value_label.grid(row=1, column=2, padx=(10, 5), pady=10, sticky='nw')
+        self.temperature_sidebar.bind("<B1-Motion>", self.temperature_sidebar_event)
+
+        # Roles:
+        self.role_label = customtkinter.CTkLabel(self.options_frame, text="Roles:", anchor="center")
+        self.role_label.grid(row=2, column=0, padx=5, pady=(10, 10), sticky='ne')
+        self.role_enabled = customtkinter.CTkCheckBox(self.options_frame, text="Enabled")
+        self.role_enabled.grid(row=2, column=1, padx=5, pady=(10, 10), sticky='nw')
+        self.role_textbox = customtkinter.CTkTextbox(self.options_frame)
+        self.role_textbox.grid(row=3, column=0, columnspan=3, padx=5, pady=(10, 10), sticky='nsew')
+
+        # Set default values and configure:
+        self.new_chat_button.configure(text="New Chat")
+        self.theme_mode_options.set("Dark")
+        self.chat_space.configure(state="disabled")
+        self.input.after(10, self.input.focus_set)
+
+    def enter_clicked(self, event):
+        if not (event.state & 0x1):  # Check if Shift key is not pressed
+            self.on_send_button_click()
+
+    def on_send_button_click(self):
+        # Check if input is empty:
+        prompt = self.input.get("1.0", tkinter.END)
+        if prompt == "Send a message" or not prompt.strip():
+            return
+
+        # Debug, GET model list:
+        # modellist = openai.Model.list()
+        # for model in modellist.data:
+        #     print(model.id)
+
+        loop = asyncio.new_event_loop()
+        asyncio.get_event_loop()
+        loop.run_until_complete(self.api_request(prompt))
+        loop.close()
+
+    async def api_request(self, prompt):
+        # Get values:
+        model = self.selected_model_options.get()
+        max_tokens = int(self.max_tokens_entry.get())
+        temperature = float(self.temperature_value_label.cget("text"))
+        role = self.role_textbox.get("1.0", tkinter.END)
+
+        # Execute prompt:
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+        chat_completion = openai.ChatCompletion.create(
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            messages=
+            [{"role": "user", "content": role},
+             {"role": "user", "content": prompt}
+             ])
+
+        # Clear input:
+        self.chat_space.configure(state="normal")
+        self.chat_space.insert(tk.END, prompt)
+        self.input.delete("1.0", tkinter.END)
+
+        # Get response into chat space:
+        temp_message = chat_completion.choices[0].message
+        response = temp_message.content
+        self.chat_space.insert(tk.END, "\n" + response + "\n\n")
+        self.chat_space.configure(state="disabled")
+        print(response)
+
+    def on_input_focus_in(self, event):
+        if self.input.get("1.0", tk.END) == "Send a message\n":
+            self.input.delete("1.0", tk.END)
+
+    def on_input_focus_out(self, event):
+        if self.input.get("1.0", tk.END) == "\n":
+            self.input.insert("1.0", "Send a message")
+
+    def temperature_sidebar_event(self, event):
+        formatted_value = format(self.temperature_sidebar.get(), '.2f')
+        self.temperature_value_label.configure(text=str(formatted_value))
+
+    def change_temperature_event(self, new_scaling: str):
+        new_scaling_float = int(new_scaling.replace("%", "")) / 100
+        customtkinter.set_widget_scaling(new_scaling_float)
+
+    def change_model_event(self, new_model: str):
+        pass
+
+    def change_theme_mode(self, new_appearance_mode: str):
+        customtkinter.set_appearance_mode(new_appearance_mode)
+
+    def new_chat_click(self):
+        pass
 
 
 if __name__ == "__main__":
-    App()
-
-
-class GUI:
-    def __init__(self):
-        self.root = tk.Tk()
-
-        self.root.geometry("1400x800")
-        self.root.title("OpenAI API Interface")
-
-        self.frame = tk.Frame( self.root)
-        self.frame.grid()
-        self.frame.columnconfigure(0, weight=10)
-        self.frame.columnconfigure(1, weight=15)
-        self.frame.columnconfigure(2, weight=5)
-        self.frame.columnconfigure(3, weight=5)
-        self.frame.columnconfigure(4, weight=5)
-
-        self.role_label = tk.Label(self.frame, text="Role:")
-        self.role_label.grid(row=0, column=0)
-
-        self.role = tk.Text(self.frame)
-        self.role.grid(row=1, column=0, sticky="ew", padx=10)
-
-        self.prompt_label = tk.Label(self.frame, text="Prompt:")
-        self.prompt_label.grid(row=0, column=1, columnspan=3, sticky="ew")
-
-        self.prompt = tk.Text(self.frame)
-        self.prompt.grid(row=1, column=1, columnspan=3, sticky="ew", padx=10)
-
-        self.output_label = tk.Label(self.frame, text="Output:")
-        self.output_label.grid(row=2, column=0, sticky="ew")
-
-        self.output = tk.Text(self.frame)
-        self.output.grid(row=3, rowspan=5, column=0, columnspan=2, sticky="ew", padx=10)
-
-        self.label_model = tk.Label(self.frame, text="Model")
-        self.label_model.grid(row=3, column=2, sticky="ew", padx=10, pady=10)
-
-        self.options = ["gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-4", "gpt-4-32k"]
-        self.model = ttk.Combobox(self.frame, values=self.options)
-        self.model.set(self.options[0])
-        self.model.grid(row=3, column=3, sticky="ew", padx=10, pady=10)
-
-        self.temperature_label = tk.Label(self.frame, text="Temperature")
-        self.temperature_label.grid(row=4, column=2, sticky="ew", padx=10, pady=10)
-
-        self.temperature_slider = ttk.Scale(self.frame, from_=0, to=2, value=0.5, orient=tk.HORIZONTAL,
-                                            command=self.on_temperature_change)
-
-        self.temperature_slider.grid(row=4, column=3, sticky="ew", padx=10, pady=10)
-
-        self.temperature = tk.Label(self.frame, text="0")
-        self.temperature.grid(row=4, column=4, sticky="ew", padx=10, pady=10)
-        self.on_temperature_change(0.5)
-
-        self.max_tokens_label = tk.Label(self.frame, text="Max Tokens:")
-        self.max_tokens_label.grid(row=5, column=2, sticky="ew", padx=10, pady=10)
-
-        self.max_tokens = tk.Entry(self.frame, textvariable=tk.StringVar(value="250"))
-        self.max_tokens.grid(row=5, column=3, sticky="ew", padx=10, pady=10)
-
-        self.submit = tk.Button(self.frame, text="Submit", font=("Arial", 24), foreground="Black", background="Green", command=self.submit)
-        self.submit.grid(row=6, rowspan=3, column=2, columnspan=3, sticky="ew", padx=10, pady=10, ipady=20)
-
-        self.root.mainloop()
-
-    def on_temperature_change(self, value):
-        rounded = round(float(value), 2)
-        self.temperature.config(text=str(rounded))
-
-    def submit(self):
-        prompt = self.prompt.get("1.0", tk.END)
-        role = self.role.get("1.0", tk.END)
-        output = self.output.get("1.0", tk.END)
-        model = self.model.get()
-        max_tokens = int(self.max_tokens.get())
-        temperature = float(self.temperature_slider.get())
-
-        openai.api_key = os.getenv("OPENAI_API_KEY")
-        models = openai.Model.list()
-        completion = openai.ChatCompletion.create(
-            model=model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            messages=[
-                {"role": "system", "content": role},
-                {"role": "user", "content": prompt}
-            ]
-        )
-
-        response = completion.choices[0].message
-        content = response["content"]
-        self.output.insert(tk.END, content)
-
+    app = App()
+    app.mainloop()
