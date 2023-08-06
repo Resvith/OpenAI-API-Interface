@@ -126,11 +126,11 @@ class App(customtkinter.CTk):
         self.chat_space.insert(tk.END, prompt)
         self.input.delete("1.0", tkinter.END)
 
-        tokens_counter = 0
         messages = []
         # Load previous messages to request if chat_id exists:
         if self.chat_id:
             tokens_limit = 1000
+            tokens_counter = 0
             with open(f"chat_{self.chat_id}.json", "r+") as chat_file:
                 chat_data = json.load(chat_file)
                 messages.append({"role": "system", "content": chat_data["parameters"]["role"]})
@@ -144,11 +144,11 @@ class App(customtkinter.CTk):
                     else:
                         break
 
-                messages.append({"role": "user", "content": prompt})
-                tokens_counter += self.count_tokens_for_text(prompt)
+                # Save counted tokens (prompt and response are counted later):
                 chat_data["parameters"]["tokens_counter"] += tokens_counter
+
+                messages.append({"role": "user", "content": prompt})
                 self.write_data_to_json_file(chat_data, f"chat_{self.chat_id}.json")
-                print("Debug, sum of tokens:", tokens_counter)
 
         else:   # If the conversation hasn't started yet:
             messages.append({"role": "system", "content": role})
@@ -180,7 +180,6 @@ class App(customtkinter.CTk):
 
         self.chat_space.insert(tk.END, "\n\n")
         self.chat_space.configure(state="disabled")
-
 
         self.save_chat_to_file(prompt, complete_message)
 
@@ -217,9 +216,10 @@ class App(customtkinter.CTk):
             chat_file_data["messages"].append(message)
             chat_file_data["parameters"]["messages_counter"] += 1
 
-            # Count tokens:
+            # Count tokens for prompt and response:
             tokens_consumed = self.count_tokens_for_text(prompt + response)
             chat_file_data["parameters"]["tokens_counter"] += tokens_consumed
+            print("Debug, sum of tokens:", chat_file_data["parameters"]["tokens_counter"])
 
             self.write_data_to_json_file(chat_file_data, f"chat_{self.chat_id}.json")
 
@@ -232,7 +232,7 @@ class App(customtkinter.CTk):
             "chats_counter": 1,
             "user_preferences": {
                 "model": "gpt-3.5-turbo",
-                "max_tokens": 1000,
+                "max_tokens": 2500,
                 "temperature": 1.0,
                 "theme": "dark",
                 "window_width": 1400,
