@@ -32,6 +32,7 @@ class App(customtkinter.CTk):
             self.window_width_pref = config_data["user_preferences"]["window_width"]
             self.window_height_pref = config_data["user_preferences"]["window_height"]
             self.fullscreened_pref = config_data["user_preferences"]["full-screened"]
+            self.remember_previous_messages_pref = config_data["user_preferences"]["remember_previous_messages"]
 
         # Configure window:
         self.title("OpenAI API Interface")
@@ -101,6 +102,10 @@ class App(customtkinter.CTk):
         self.role_enabled.grid(row=2, column=1, padx=5, pady=(10, 10), sticky='nw')
         self.role_textbox = customtkinter.CTkTextbox(self.options_frame)
         self.role_textbox.grid(row=3, column=0, columnspan=3, padx=5, pady=(10, 10), sticky='nsew')
+        self.remember_previous_messages = customtkinter.CTkCheckBox(self.options_frame, text="Remember previous messages")
+        self.remember_previous_messages.bind("<Button-1>", self.on_remember_previous_messages_click)
+
+        self.remember_previous_messages.grid(row=4, column=0, columnspan=3, padx=5, pady=(10, 10), sticky='nsew')
 
         # Set default values and configure:
         self.new_chat_button.configure(text="New Chat")
@@ -109,6 +114,8 @@ class App(customtkinter.CTk):
         self.temperature_sidebar.set(self.temperature_pref)
         self.selected_model_options.set(self.model_pref)
         self.max_tokens_entry.insert(0, self.max_tokens_pref)
+        if self.remember_previous_messages_pref:
+            self.remember_previous_messages.select()
         if self.fullscreened_pref:
             self.after(1, self.make_window_fullscreen)
         self.input.after(25, self.input.focus_set)
@@ -119,40 +126,13 @@ class App(customtkinter.CTk):
         model = self.selected_model_options.get()
         max_tokens = int(self.max_tokens_entry.get())
         temperature = float(self.temperature_value_label.cget("text"))
-        role = self.role_textbox.get("1.0", tkinter.END)
 
         # Clear input:
         self.chat_space.configure(state="normal")
         self.chat_space.insert(tk.END, prompt)
         self.input.delete("1.0", tkinter.END)
 
-        messages = []
-        # Load previous messages to request if chat_id exists:
-        if self.chat_id:
-            tokens_limit = 1000
-            tokens_counter = 0
-            with open(f"chat_{self.chat_id}.json", "r+") as chat_file:
-                chat_data = json.load(chat_file)
-                messages.append({"role": "system", "content": chat_data["parameters"]["role"]})
-                tokens_counter += self.count_tokens_for_text(chat_data["parameters"]["role"])
-                for i in range(len(chat_data["messages"]) - 1, -1, -1):
-                    tokens_counter += self.count_tokens_for_text(chat_data["messages"][i]["content"])
-                    tokens_counter += self.count_tokens_for_text(chat_data["messages"][i]["answer"])
-                    if tokens_limit > tokens_counter:
-                        messages.append({"role": "user", "content": chat_data["messages"][i]["content"]})
-                        messages.append({"role": "system", "content": chat_data["messages"][i]["answer"]})
-                    else:
-                        break
-
-                # Save counted tokens (prompt and response are counted later):
-                chat_data["parameters"]["tokens_counter"] += tokens_counter
-
-                messages.append({"role": "user", "content": prompt})
-                self.write_data_to_json_file(chat_data, f"chat_{self.chat_id}.json")
-
-        else:   # If the conversation hasn't started yet:
-            messages.append({"role": "system", "content": role})
-            messages.append({"role": "user", "content": prompt})
+        messages = self.load_previous_messages_and_count_its_tokens(prompt)
 
         # Execute prompt:
         openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -206,6 +186,7 @@ class App(customtkinter.CTk):
                     "messages": []
                 }
                 json.dump(chat_file_data, chat_file)
+                self.role_textbox.configure(state="disabled")   # Disable role textbox after first message
 
         with open(f"chat_{self.chat_id}.json", "r+") as chat_file:
             chat_file_data = json.load(chat_file)
@@ -223,6 +204,37 @@ class App(customtkinter.CTk):
 
             self.write_data_to_json_file(chat_file_data, f"chat_{self.chat_id}.json")
 
+    def load_previous_messages_and_count_its_tokens(self, prompt):
+        messages = []
+        if self.chat_id and self.remember_previous_messages_pref:
+            tokens_limit = 1000
+            tokens_counter = 0
+
+            with open(f"chat_{self.chat_id}.json", "r+") as chat_file:
+                chat_data = json.load(chat_file)
+                messages.append({"role": "system", "content": chat_data["parameters"]["role"]})
+                tokens_counter += self.count_tokens_for_text(chat_data["parameters"]["role"])
+                for i in range(len(chat_data["messages"]) - 1, -1, -1):
+                    tokens_counter += self.count_tokens_for_text(chat_data["messages"][i]["content"])
+                    tokens_counter += self.count_tokens_for_text(chat_data["messages"][i]["answer"])
+                    if tokens_limit > tokens_counter:
+                        messages.append({"role": "user", "content": chat_data["messages"][i]["content"]})
+                        messages.append({"role": "system", "content": chat_data["messages"][i]["answer"]})
+                    else:
+                        break
+
+                # Save counted tokens (prompt and response are counted later):
+                chat_data["parameters"]["tokens_counter"] += tokens_counter
+
+                messages.append({"role": "user", "content": prompt})
+                self.write_data_to_json_file(chat_data, f"chat_{self.chat_id}.json")
+
+        else:  # If the conversation hasn't started yet:
+            messages.append({"role": "system", "content": self.role_textbox.get("1.0", tkinter.END)})
+            messages.append({"role": "user", "content": prompt})
+
+        return messages
+
     def count_tokens_for_text(self, text):
         encoding = tiktoken.encoding_for_model(self.selected_model_options.get())
         return len(encoding.encode(text))
@@ -237,7 +249,8 @@ class App(customtkinter.CTk):
                 "theme": "dark",
                 "window_width": 1400,
                 "window_height": 800,
-                "full-screened": False
+                "full-screened": False,
+                "remember_previous_messages": False
             }
         }
 
@@ -265,9 +278,6 @@ class App(customtkinter.CTk):
             return
         self.api_request(prompt)
 
-    def write_message_to_file(self, ):
-        pass
-
     def on_input_focus_in(self, event):
         if self.input.get("1.0", tk.END) == "Send a message\n":
             self.input.delete("1.0", tk.END)
@@ -292,6 +302,12 @@ class App(customtkinter.CTk):
 
     def new_chat_click(self):
         pass
+
+    def on_remember_previous_messages_click(self, event):
+        with open("config.json", "r+") as config_file:
+            config_data = json.load(config_file)
+            self.remember_previous_messages_pref = config_data["user_preferences"]["remember_previous_messages"] = self.remember_previous_messages.get()
+            self.write_data_to_json_file(config_data, "config.json")
 
 
 if __name__ == "__main__":
