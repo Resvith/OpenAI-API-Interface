@@ -6,6 +6,7 @@ import customtkinter
 import threading
 import json
 import datetime
+import tiktoken
 
 customtkinter.set_appearance_mode("System")
 customtkinter.set_default_color_theme("blue")
@@ -113,24 +114,6 @@ class App(customtkinter.CTk):
         self.input.after(25, self.input.focus_set)
         self.chat_id = None
 
-    def make_window_fullscreen(self):
-        self.state('zoomed')
-
-    def enter_clicked(self, event):
-        if not (event.state & 0x1):  # Check if Shift key is not pressed
-            threading.Thread(target=self.check_correct_input).start()
-
-    def on_send_button_click(self):
-        threading.Thread(target=self.check_correct_input).start()
-
-    def check_correct_input(self):
-        # Check if input is empty:
-        prompt = self.input.get("1.0", tkinter.END)
-        print(prompt)
-        if prompt == "Send a message\n" or not prompt.strip():
-            return
-        self.api_request(prompt)
-
     def api_request(self, prompt):
         # Get values:
         model = self.selected_model_options.get()
@@ -143,6 +126,34 @@ class App(customtkinter.CTk):
         self.chat_space.insert(tk.END, prompt)
         self.input.delete("1.0", tkinter.END)
 
+        tokens_counter = 0
+        messages = []
+        # Load previous messages to request if chat_id exists:
+        if self.chat_id:
+            tokens_limit = 1000
+            with open(f"chat_{self.chat_id}.json", "r+") as chat_file:
+                chat_data = json.load(chat_file)
+                messages.append({"role": "system", "content": chat_data["parameters"]["role"]})
+                tokens_counter += self.count_tokens_for_text(chat_data["parameters"]["role"])
+                for i in range(len(chat_data["messages"]) - 1, -1, -1):
+                    tokens_counter += self.count_tokens_for_text(chat_data["messages"][i]["content"])
+                    tokens_counter += self.count_tokens_for_text(chat_data["messages"][i]["answer"])
+                    if tokens_limit > tokens_counter:
+                        messages.append({"role": "user", "content": chat_data["messages"][i]["content"]})
+                        messages.append({"role": "system", "content": chat_data["messages"][i]["answer"]})
+                    else:
+                        break
+
+                messages.append({"role": "user", "content": prompt})
+                tokens_counter += self.count_tokens_for_text(prompt)
+                chat_data["parameters"]["tokens_counter"] += tokens_counter
+                self.write_data_to_json_file(chat_data, f"chat_{self.chat_id}.json")
+                print("Debug, sum of tokens:", tokens_counter)
+
+        else:   # If the conversation hasn't started yet:
+            messages.append({"role": "system", "content": role})
+            messages.append({"role": "user", "content": prompt})
+
         # Execute prompt:
         openai.api_key = os.getenv("OPENAI_API_KEY")
         chat_completion = openai.ChatCompletion.create(
@@ -150,10 +161,8 @@ class App(customtkinter.CTk):
             temperature=temperature,
             max_tokens=max_tokens,
             stream=True,
-            messages=
-            [{"role": "user", "content": role},
-             {"role": "user", "content": prompt}
-             ])
+            messages=messages
+        )
 
         # Debug, check models:
         # model_list = openai.Model.list()
@@ -172,13 +181,8 @@ class App(customtkinter.CTk):
         self.chat_space.insert(tk.END, "\n\n")
         self.chat_space.configure(state="disabled")
 
-        print(chat_completion)
 
         self.save_chat_to_file(prompt, complete_message)
-
-    def write_data_to_json_file(self, data, file_path):
-        with open(file_path, "w") as file:
-            json.dump(data, file)
 
     def save_chat_to_file(self, prompt, response):
         if self.chat_id is None:
@@ -187,7 +191,6 @@ class App(customtkinter.CTk):
             with open("config.json", "r+") as config_file:
                 config_parameters = json.load(config_file)
                 config_parameters["chats_counter"] += 1
-                print(config_parameters["chats_counter"])
                 self.write_data_to_json_file(config_parameters, "config.json")
 
             with open(f"chat_{self.chat_id}.json", "a") as chat_file:
@@ -196,6 +199,8 @@ class App(customtkinter.CTk):
                         "model": self.selected_model_options.get(),
                         "max_tokens": self.max_tokens_entry.get(),
                         "temperature": self.temperature_value_label.cget("text"),
+                        "role": self.role_textbox.get("1.0", tkinter.END),
+                        "tokens_counter": 0,
                         "messages_counter": 0,
                         "date": f"{datetime.datetime.now().strftime('%d/%m/%Y')}"
                     },
@@ -211,8 +216,16 @@ class App(customtkinter.CTk):
             }
             chat_file_data["messages"].append(message)
             chat_file_data["parameters"]["messages_counter"] += 1
+
+            # Count tokens:
+            tokens_consumed = self.count_tokens_for_text(prompt + response)
+            chat_file_data["parameters"]["tokens_counter"] += tokens_consumed
+
             self.write_data_to_json_file(chat_file_data, f"chat_{self.chat_id}.json")
 
+    def count_tokens_for_text(self, text):
+        encoding = tiktoken.encoding_for_model(self.selected_model_options.get())
+        return len(encoding.encode(text))
 
     def create_default_config(self):
         default_config_data = {
@@ -230,6 +243,27 @@ class App(customtkinter.CTk):
 
         with open("config.json", "w") as json_file:
             json.dump(default_config_data, json_file)
+
+    def write_data_to_json_file(self, data, file_path):
+        with open(file_path, "w") as file:
+            json.dump(data, file)
+
+    def make_window_fullscreen(self):
+        self.state('zoomed')
+
+    def enter_clicked(self, event):
+        if not (event.state & 0x1):  # Check if Shift key is not pressed
+            threading.Thread(target=self.check_correct_input).start()
+
+    def on_send_button_click(self):
+        threading.Thread(target=self.check_correct_input).start()
+
+    def check_correct_input(self):
+        # Check if input is empty:
+        prompt = self.input.get("1.0", tkinter.END)
+        if prompt == "Send a message\n" or not prompt.strip():
+            return
+        self.api_request(prompt)
 
     def write_message_to_file(self, ):
         pass
