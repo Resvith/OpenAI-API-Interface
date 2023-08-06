@@ -5,6 +5,7 @@ import tkinter.messagebox
 import customtkinter
 import threading
 import json
+import datetime
 
 customtkinter.set_appearance_mode("System")
 customtkinter.set_default_color_theme("blue")
@@ -20,9 +21,9 @@ class App(customtkinter.CTk):
             print("Debug, config file created.")
 
         # Load config file:
-        with open("config.json", "r") as json_file:
-            config_data = json.load(json_file)
-            self.chat_count = config_data["chat_count"]
+        with open("config.json", "r") as config_file:
+            config_data = json.load(config_file)
+            self.chat_count = config_data["chats_counter"]
             self.model_pref = config_data["user_preferences"]["model"]
             self.max_tokens_pref = config_data["user_preferences"]["max_tokens"]
             self.temperature_pref = config_data["user_preferences"]["temperature"]
@@ -104,12 +105,13 @@ class App(customtkinter.CTk):
         self.new_chat_button.configure(text="New Chat")
         self.theme_mode_options.set(self.theme_mode_pref)
         self.chat_space.configure(state="disabled")
-        self.input.after(10, self.input.focus_set)
         self.temperature_sidebar.set(self.temperature_pref)
         self.selected_model_options.set(self.model_pref)
         self.max_tokens_entry.insert(0, self.max_tokens_pref)
         if self.fullscreened_pref:
             self.after(1, self.make_window_fullscreen)
+        self.input.after(25, self.input.focus_set)
+        self.chat_id = None
 
     def make_window_fullscreen(self):
         self.state('zoomed')
@@ -136,8 +138,6 @@ class App(customtkinter.CTk):
         temperature = float(self.temperature_value_label.cget("text"))
         role = self.role_textbox.get("1.0", tkinter.END)
 
-
-
         # Clear input:
         self.chat_space.configure(state="normal")
         self.chat_space.insert(tk.END, prompt)
@@ -156,9 +156,9 @@ class App(customtkinter.CTk):
              ])
 
         # Debug, check models:
-        model_list = openai.Model.list()
-        for model in model_list.data:
-            print(model.id)
+        # model_list = openai.Model.list()
+        # for model in model_list.data:
+        #     print(model.id)
 
         # Get response into chat space:
         complete_message = ""
@@ -172,11 +172,53 @@ class App(customtkinter.CTk):
         self.chat_space.insert(tk.END, "\n\n")
         self.chat_space.configure(state="disabled")
 
+        print(chat_completion)
+
+        self.save_chat_to_file(prompt, complete_message)
+
+    def write_data_to_json_file(self, data, file_path):
+        with open(file_path, "w") as file:
+            json.dump(data, file)
+
+    def save_chat_to_file(self, prompt, response):
+        if self.chat_id is None:
+            self.chat_id = self.chat_count
+
+            with open("config.json", "r+") as config_file:
+                config_parameters = json.load(config_file)
+                config_parameters["chats_counter"] += 1
+                print(config_parameters["chats_counter"])
+                self.write_data_to_json_file(config_parameters, "config.json")
+
+            with open(f"chat_{self.chat_id}.json", "a") as chat_file:
+                chat_file_data = {
+                    "parameters": {
+                        "model": self.selected_model_options.get(),
+                        "max_tokens": self.max_tokens_entry.get(),
+                        "temperature": self.temperature_value_label.cget("text"),
+                        "messages_counter": 0,
+                        "date": f"{datetime.datetime.now().strftime('%d/%m/%Y')}"
+                    },
+                    "messages": []
+                }
+                json.dump(chat_file_data, chat_file)
+
+        with open(f"chat_{self.chat_id}.json", "r+") as chat_file:
+            chat_file_data = json.load(chat_file)
+            message = {
+                "content": prompt,
+                "answer": response
+            }
+            chat_file_data["messages"].append(message)
+            chat_file_data["parameters"]["messages_counter"] += 1
+            self.write_data_to_json_file(chat_file_data, f"chat_{self.chat_id}.json")
+
+
     def create_default_config(self):
         default_config_data = {
-            "chat_count": 0,
+            "chats_counter": 1,
             "user_preferences": {
-                "model": "gpt-4",
+                "model": "gpt-3.5-turbo",
                 "max_tokens": 1000,
                 "temperature": 1.0,
                 "theme": "dark",
