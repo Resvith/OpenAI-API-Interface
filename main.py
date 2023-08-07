@@ -46,16 +46,18 @@ class App(customtkinter.CTk):
         self.grid_rowconfigure((0, 1, 2), weight=1)
 
         # Create chat history frame:
-        self.chat_history_frame = customtkinter.CTkFrame(self, width=140, corner_radius=0)
-        self.chat_history_frame.grid(row=0, column=0, rowspan=4, sticky="nsew")
-        self.chat_history_frame.grid_rowconfigure(4, weight=1)
-        self.new_chat_button = customtkinter.CTkButton(self.chat_history_frame, command=self.new_chat_click)
+        self.left_chats_bar = customtkinter.CTkFrame(self, width=140, corner_radius=0)
+        self.left_chats_bar.grid(row=0, column=0, rowspan=4, sticky="nsew")
+        self.left_chats_bar.grid_rowconfigure(4, weight=1)
+        self.new_chat_button = customtkinter.CTkButton(self.left_chats_bar, command=self.new_chat_click)
         self.new_chat_button.grid(row=1, column=0)
-        self.theme_mode_label = customtkinter.CTkLabel(self.chat_history_frame, text="Appearance Mode:", anchor="w")
-        self.theme_mode_label.grid(row=5, column=0, padx=20, pady=(10, 0))
-        self.theme_mode_options = customtkinter.CTkOptionMenu(self.chat_history_frame, values=["Light", "Dark", "System"],
+        self.chat_history_frame = customtkinter.CTkFrame(self.left_chats_bar, corner_radius=0)
+        self.chat_history_frame.grid(row=2, column=0, padx=20, pady=(20, 0), sticky="nsew")
+        self.theme_mode_label = customtkinter.CTkLabel(self.left_chats_bar, text="Appearance Mode:", anchor="w")
+        self.theme_mode_label.grid(row=3, column=0, padx=20, pady=(10, 0))
+        self.theme_mode_options = customtkinter.CTkOptionMenu(self.left_chats_bar, values=["Light", "Dark", "System"],
                                                               command=self.change_theme_mode)
-        self.theme_mode_options.grid(row=6, column=0, padx=20, pady=(10, 10))
+        self.theme_mode_options.grid(row=4, column=0, padx=20, pady=(10, 10), sticky="s")
 
         # Create input and send button:
         self.input = customtkinter.CTkTextbox(self, height=60)
@@ -121,6 +123,50 @@ class App(customtkinter.CTk):
         self.input.after(25, self.input.focus_set)
         self.chat_id = None
 
+        # Load previous chat to chat history:
+        self.load_previous_chat_to_chat_history()
+
+    def load_previous_chat_to_chat_history(self):
+        if os.path.exists("chats"):
+            chats_list = os.listdir("chats")
+            chats_list.reverse()
+            chats_frame_height = self.chat_history_frame.cget("height")
+            max_chats = int(chats_frame_height / 30)
+            i = 0
+
+            while len(chats_list) > i < max_chats:
+                button_name = chats_list[i]
+                button_name = button_name.replace(".json", "")
+                button = customtkinter.CTkButton(self.chat_history_frame, text=button_name)
+                button.bind("<Button-1>", lambda event, bn=button_name: self.load_other_chat_config_and_chat_story(bn))
+                button.grid(row=i, column=0, pady=1, sticky="ew")
+                i += 1
+
+    def load_other_chat_config_and_chat_story(self, file_name):
+        self.chat_space.configure(state="normal")
+        self.chat_space.delete("1.0", tkinter.END)
+
+        with open("chats/" + file_name + ".json", "r") as chat_file:
+            chat_data = json.load(chat_file)
+
+            # Load chat previous data:
+            self.chat_id = chat_data["parameters"]["chat_id"]
+            self.max_tokens_entry.delete(0, tkinter.END)
+            self.max_tokens_entry.insert(0, chat_data["parameters"]["max_tokens"])
+            self.temperature_sidebar.set(float(chat_data["parameters"]["temperature"]))
+            self.temperature_value_label.configure(text=str(chat_data["parameters"]["temperature"]))
+            self.selected_model_options.set(chat_data["parameters"]["model"])
+            self.role_textbox.configure(state="normal")
+            self.role_textbox.delete("1.0", tkinter.END)
+            self.role_textbox.insert("1.0", chat_data["parameters"]["role"])
+            self.role_textbox.configure(state="disabled")
+
+            # Load chat messages:
+            for message in chat_data["messages"]:
+                self.chat_space.insert(tk.END, (message["content"] + message["answer"]))
+
+        self.chat_space.configure(state="disable")
+
     def api_request(self, prompt):
         # Get values:
         model = self.selected_model_options.get()
@@ -165,16 +211,21 @@ class App(customtkinter.CTk):
 
     def save_chat_to_file(self, prompt, response):
         if self.chat_id is None:
-            self.chat_id = self.chat_count
-
             with open("config.json", "r+") as config_file:
                 config_parameters = json.load(config_file)
                 config_parameters["chats_counter"] += 1
                 self.write_data_to_json_file(config_parameters, "config.json")
 
-            with open(f"chat_{self.chat_id}.json", "a") as chat_file:
+            self.chat_id = config_parameters["chats_counter"]
+
+            is_folder_chats_exist = os.path.exists("chats")
+            if not is_folder_chats_exist:
+                os.mkdir("chats")
+
+            with open(f"chats/chat_{self.chat_id}.json", "a") as chat_file:
                 chat_file_data = {
                     "parameters": {
+                        "chat_id": self.chat_id,
                         "model": self.selected_model_options.get(),
                         "max_tokens": self.max_tokens_entry.get(),
                         "temperature": self.temperature_value_label.cget("text"),
@@ -188,7 +239,7 @@ class App(customtkinter.CTk):
                 json.dump(chat_file_data, chat_file)
                 self.role_textbox.configure(state="disabled")   # Disable role textbox after first message
 
-        with open(f"chat_{self.chat_id}.json", "r+") as chat_file:
+        with open(f"chats/chat_{self.chat_id}.json", "r+") as chat_file:
             chat_file_data = json.load(chat_file)
             message = {
                 "content": prompt,
@@ -202,7 +253,7 @@ class App(customtkinter.CTk):
             chat_file_data["parameters"]["tokens_counter"] += tokens_consumed
             print("Debug, sum of tokens:", chat_file_data["parameters"]["tokens_counter"])
 
-            self.write_data_to_json_file(chat_file_data, f"chat_{self.chat_id}.json")
+            self.write_data_to_json_file(chat_file_data, f"chats/chat_{self.chat_id}.json")
 
     def load_previous_messages_and_count_its_tokens(self, prompt):
         messages = []
@@ -210,7 +261,7 @@ class App(customtkinter.CTk):
             tokens_limit = 1000
             tokens_counter = 0
 
-            with open(f"chat_{self.chat_id}.json", "r+") as chat_file:
+            with open(f"chats/chat_{self.chat_id}.json", "r+") as chat_file:
                 chat_data = json.load(chat_file)
                 messages.append({"role": "system", "content": chat_data["parameters"]["role"]})
                 tokens_counter += self.count_tokens_for_text(chat_data["parameters"]["role"])
@@ -227,7 +278,7 @@ class App(customtkinter.CTk):
                 chat_data["parameters"]["tokens_counter"] += tokens_counter
 
                 messages.append({"role": "user", "content": prompt})
-                self.write_data_to_json_file(chat_data, f"chat_{self.chat_id}.json")
+                self.write_data_to_json_file(chat_data, f"chats/chat_{self.chat_id}.json")
 
         else:  # If the conversation hasn't started yet:
             messages.append({"role": "system", "content": self.role_textbox.get("1.0", tkinter.END)})
@@ -301,7 +352,12 @@ class App(customtkinter.CTk):
         customtkinter.set_appearance_mode(new_appearance_mode)
 
     def new_chat_click(self):
-        pass
+        print("new_chat_click")
+        self.chat_id = None
+        self.role_textbox.configure(state="normal")
+        self.chat_space.configure(state="normal")
+        self.chat_space.delete("1.0", tkinter.END)
+        self.chat_space.configure(state="disabled")
 
     def on_remember_previous_messages_click(self, event):
         with open("config.json", "r+") as config_file:
