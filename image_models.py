@@ -5,18 +5,11 @@ import openai
 import threading
 import webbrowser
 
-customtkinter.set_appearance_mode("Dark")
-customtkinter.set_default_color_theme("blue")
+from controller_frame import ControllerFrame
 
 
-class ImageModels(customtkinter.CTk):
-    def __init__(self):
-        super().__init__()
-        self.title("OpenAI API Interface")
-        self.geometry("800x800")
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=1)
-
+class ImageModels(ControllerFrame):
+    def create_widgets(self):
         self.image_space = customtkinter.CTkScrollableFrame(self)
         self.image_space.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
@@ -28,7 +21,7 @@ class ImageModels(customtkinter.CTk):
         self.submit_button.bind("<Return>", self.submit_enter)
         self.submit_button.grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
 
-    def submit_button_click(self, evnet):
+    def submit_button_click(self, event):
         threading.Thread(target=self.submit_async).start()
 
     def submit_enter(self, event):

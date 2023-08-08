@@ -8,18 +8,15 @@ import json
 import datetime
 import tiktoken
 
-import main
-
-customtkinter.set_appearance_mode("System")
-customtkinter.set_default_color_theme("blue")
+from controller_frame import ControllerFrame
 
 
-# class TextModels(customtkinter.CTk):
-    # def __init__(self):
-    #     super().__init__()
-class TextModels(main.ControllerFrame):
+class TextModels(ControllerFrame):
+    def __init__(self, master, controller):
+        ControllerFrame.__init__(self, master, controller)
+        self.controller.change_geometry(1100, 800)
+
     def create_widgets(self):
-
         # Create config file if no exists:
         if not (os.path.exists("config.json")):
             self.create_default_config()
@@ -37,6 +34,8 @@ class TextModels(main.ControllerFrame):
             self.window_height_pref = config_data["user_preferences"]["window_height"]
             self.fullscreened_pref = config_data["user_preferences"]["full-screened"]
             self.remember_previous_messages_pref = config_data["user_preferences"]["remember_previous_messages"]
+
+
 
         # Configure window:
         # self.title("OpenAI API Interface")
@@ -89,8 +88,7 @@ class TextModels(main.ControllerFrame):
         self.options_frame.grid(row=0, rowspan=3, column=3, padx=(20, 20), pady=(20, 0), sticky="nsew")
 
         # Menu button:
-        self.menu_button = customtkinter.CTkButton(self.options_frame, text="Go back to the Menu", font=("New Times Roma", 16))
-        self.menu_button.bind("<Button-1>", self.on_menu_button_click)
+        self.menu_button = customtkinter.CTkButton(self.options_frame, text="Go back to the Menu", font=("New Times Roma", 16), command=self.on_menu_button_click)
         self.menu_button.grid(row=0, column=0, columnspan=3, padx=(10, 10), pady=(10, 10), sticky="nsew")
 
         # Max tokens and temperature:
@@ -138,9 +136,7 @@ class TextModels(main.ControllerFrame):
             chats_list = os.listdir("chats")
             chats_list.reverse()
             chats_frame_height = self.chat_history_frame.cget("height")
-            print("1", chats_frame_height)
             chats_frame_height2 = self.left_chats_bar.grid_info()
-            print("2", chats_frame_height2)
             max_chats = 30
             i = 0
 
@@ -375,22 +371,14 @@ class TextModels(main.ControllerFrame):
     def make_window_fullscreen(self):
         self.state('zoomed')
 
-    def on_menu_button_click(self):
-        print("Hello world")
-        self.withdraw()
-        self.menu_window = main.App()
-        self.menu_window.protocol("WM_DELETE_WINDOW", self.on_menu_window_close)
-        self.menu_window.mainloop()
-
-    def on_menu_window_close(self):
-        self.deiconify()
-        self.menu_window.destroy()
-
     def enter_clicked(self, event):
         if not (event.state & 0x1):  # Check if Shift key is not pressed
             threading.Thread(target=self.check_correct_input).start()
 
+    def on_menu_button_click(self):
+        self.controller.show_frame("Menu")
+        self.controller.change_geometry(400, 400)
+        self.controller.change_min_size(400, 400)
+
     def on_send_button_click(self):
         threading.Thread(target=self.check_correct_input).start()
-
-

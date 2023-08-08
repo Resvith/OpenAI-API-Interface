@@ -1,63 +1,56 @@
 import customtkinter
-import tkinter as tk
 
-import TextModels
+from text_models import TextModels
+from menu import Menu
+from image_models import ImageModels
 
 customtkinter.set_appearance_mode("Dark")
 customtkinter.set_default_color_theme("blue")
 
 
-class ControllerFrame(customtkinter.CTkFrame):
-    def __init__(self, master, controller):
-        customtkinter.CTkFrame.__init__(self, master)
-        self.controller = controller
-        self.grid()
-        self.create_widgets()
-
-    def create_widgets(self):
-        raise NotImplementedError
-
-
-class Menu(ControllerFrame):
-    # def __init__(self, master, controller):
-    #     super().__init__(master, controller)
-    #     self.audio_models_button = None
-    #     self.image_models_button = None
-    #     self.text_models_button = None
-
-    def create_widgets(self):
-        self.text_models_button = customtkinter.CTkButton(self, text="Text Models", font=("New Times Rome", 24))
-        self.text_models_button.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-        self.image_models_button = customtkinter.CTkButton(self, text="Image Models", font=("New Times Rome", 24))
-        self.image_models_button.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
-        self.audio_models_button = customtkinter.CTkButton(self, text="Audio Models", font=("New Times Rome", 24))
-        self.audio_models_button.grid(row=2, column=0, sticky="nsew", padx=10, pady=10)
-        
-
 class App(customtkinter.CTk):
     def __init__(self):
         customtkinter.CTk.__init__(self)
+        self.class_mapping = None
+        self.frames = None
+        self.container = None
         self.title("OpenAI API Interface")
-        self.geometry("400x400")
         self.create_widgets()
-        self.resizable(0, 0)
 
     def create_widgets(self):
         #   Frame Container
+        self.change_geometry(1920, 1080)
         self.container = customtkinter.CTkFrame(self)
-        self.container.grid(row=0, column=0, sticky=tk.W + tk.E)
+        self.container.grid(row=0, column=0, sticky="nsew")
+        self.container.grid_rowconfigure(0, weight=1)
+        self.container.grid_columnconfigure(0, weight=1)
+        print("Container created:", self.container.winfo_width(), self.container.winfo_height())
 
         #   Frames
         self.frames = {}
-        for f in (Menu, TextModels.TextModels):  # defined subclasses of BaseFrame
-            print(f)
+        self.class_mapping = {"Menu": Menu, "TextModels": TextModels, "ImageModels": ImageModels}
+        for f in (Menu, TextModels, ImageModels):  # defined subclasses of BaseFrame
             frame = f(self.container, self)
-            frame.grid(row=2, column=2, sticky=tk.NW + tk.SE)
+            frame.grid(row=2, column=2, sticky="nsew")
+            frame.grid_columnconfigure(0, weight=1)
             self.frames[f] = frame
-        self.show_frame(Menu)
 
-    def show_frame(self, cls):
-        self.frames[cls].tkraise()
+        self.show_frame("TextModels")
+        print("Container after Menu showing: ", self.container.winfo_width(), self.container.winfo_height())
+
+        print("Container after Menu modification: ", self.container.winfo_width(), self.container.winfo_height())
+
+    def show_frame(self, class_name):
+        cls = self.class_mapping.get(class_name)
+        if cls:
+            self.geometry("1920x1080")
+            self.frames[cls].tkraise()
+
+    def change_geometry(self, width, height):
+        self.geometry(f"{width}x{height}")
+
+    def change_min_size(self, width, height):
+        self.minsize(width, height)
 
 
 if __name__ == "__main__":
