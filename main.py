@@ -19,7 +19,6 @@ class App(customtkinter.CTk):
 
     def create_widgets(self):
         #   Frame Container
-        self.change_geometry(1920, 1080)
         self.container = customtkinter.CTkFrame(self)
         self.container.grid(row=0, column=0, sticky="nsew")
         self.container.grid_rowconfigure(0, weight=1)
@@ -31,19 +30,15 @@ class App(customtkinter.CTk):
         self.class_mapping = {"Menu": Menu, "TextModels": TextModels, "ImageModels": ImageModels}
         for f in (Menu, TextModels, ImageModels):  # defined subclasses of BaseFrame
             frame = f(self.container, self)
-            frame.grid(row=2, column=2, sticky="nsew")
+            frame.grid(row=0, column=0, sticky="nsew")
             frame.grid_columnconfigure(0, weight=1)
             self.frames[f] = frame
 
-        self.show_frame("TextModels")
-        print("Container after Menu showing: ", self.container.winfo_width(), self.container.winfo_height())
-
-        print("Container after Menu modification: ", self.container.winfo_width(), self.container.winfo_height())
+        self.show_frame("Menu")
 
     def show_frame(self, class_name):
         cls = self.class_mapping.get(class_name)
         if cls:
-            self.geometry("1920x1080")
             self.frames[cls].tkraise()
 
     def change_geometry(self, width, height):

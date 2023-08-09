@@ -14,7 +14,7 @@ from controller_frame import ControllerFrame
 class TextModels(ControllerFrame):
     def __init__(self, master, controller):
         ControllerFrame.__init__(self, master, controller)
-        self.controller.change_geometry(1100, 800)
+        self.controller.change_geometry(1400, 900)
 
     def create_widgets(self):
         # Create config file if no exists:
