@@ -23,23 +23,31 @@ class App(customtkinter.CTk):
         self.container.grid(row=0, column=0, sticky="nsew")
         self.container.grid_rowconfigure(0, weight=1)
         self.container.grid_columnconfigure(0, weight=1)
-        print("Container created:", self.container.winfo_width(), self.container.winfo_height())
 
         #   Frames
         self.frames = {}
-        self.class_mapping = {"Menu": Menu, "TextModels": TextModels, "ImageModels": ImageModels}
-        for f in (Menu, TextModels, ImageModels):  # defined subclasses of BaseFrame
-            frame = f(self.container, self)
+        for F in (Menu, TextModels, ImageModels):  # defined subclasses of BaseFrame
+            class_name = F.__name__
+            frame = F(self.container, self)
+            self.frames[class_name] = frame
             frame.grid(row=0, column=0, sticky="nsew")
-            frame.grid_columnconfigure(0, weight=1)
-            self.frames[f] = frame
 
-        self.show_frame("Menu")
+        # Show start window
+        # self.show_frame("Menu")
+        # self.change_geometry(400, 400)
+        # self.change_min_size(400, 400)
+        self.show_frame("TextModels")
+        self.change_geometry(1400, 800)
+        self.change_min_size(1100, 580)
 
     def show_frame(self, class_name):
-        cls = self.class_mapping.get(class_name)
-        if cls:
-            self.frames[cls].tkraise()
+        for frame in self.frames.values():
+            frame.grid_remove()
+        frame = self.frames[class_name]
+        frame.grid()
+        frame.grid(row=0, column=0)
+        frame.grid_columnconfigure(0, weight=1)
+        frame.grid_rowconfigure(0, weight=1)
 
     def change_geometry(self, width, height):
         self.geometry(f"{width}x{height}")

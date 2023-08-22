@@ -20,14 +20,16 @@ class Menu(ControllerFrame):
         self.audio_models_button = customtkinter.CTkButton(self, text="Audio Models", font=("New Times Rome", 24))
         self.audio_models_button.grid(row=2, column=0, sticky="nsew", padx=10, pady=10)
 
+        #  Configure Rows
+        self.rowconfigure(1, weight=1)
+        self.rowconfigure(2, weight=1)
+
     def on_text_models_button_click(self):
-        print("Text Models Button Clicked")
         self.controller.show_frame("TextModels")
         self.controller.change_geometry(1400, 800)
         self.controller.change_min_size(1100, 580)
 
     def on_image_models_button_click(self):
-        print("Image Models Button Clicked")
         self.controller.show_frame("ImageModels")
         self.controller.change_geometry(1400, 800)
         self.controller.change_min_size(1100, 580)

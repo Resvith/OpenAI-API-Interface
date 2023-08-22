@@ -11,16 +11,48 @@ import tiktoken
 from controller_frame import ControllerFrame
 
 
+def create_default_config():
+    default_config_data = {
+        "chats_counter": 1,
+        "user_preferences": {
+            "model": "gpt-3.5-turbo",
+            "max_tokens": 2500,
+            "temperature": 1.0,
+            "theme": "dark",
+            "window_width": 1400,
+            "window_height": 800,
+            "full-screened": False,
+            "remember_previous_messages": False
+        }
+    }
+
+    with open("config.json", "w") as json_file:
+        json.dump(default_config_data, json_file)
+
+
+def write_data_to_json_file(data, file_path):
+    with open(file_path, "w") as file:
+        json.dump(data, file)
+
+
+def delete_elements_in_frame(frame):
+    for widget in frame.winfo_children():
+        widget.destroy()
+
+
+def change_theme_mode(new_appearance_mode: str):
+    customtkinter.set_appearance_mode(new_appearance_mode)
+
+
 class TextModels(ControllerFrame):
     def __init__(self, master, controller):
         ControllerFrame.__init__(self, master, controller)
-        self.controller.change_geometry(1400, 900)
+        self.master.class_container = None
 
     def create_widgets(self):
         # Create config file if no exists:
         if not (os.path.exists("config.json")):
-            self.create_default_config()
-            print("Debug, config file created.")
+            create_default_config()
 
         # Load config file:
         with open("config.json", "r") as config_file:
@@ -35,21 +67,16 @@ class TextModels(ControllerFrame):
             self.fullscreened_pref = config_data["user_preferences"]["full-screened"]
             self.remember_previous_messages_pref = config_data["user_preferences"]["remember_previous_messages"]
 
-
-
-        # Configure window:
-        # self.title("OpenAI API Interface")
-        # self.minsize(1100, 580)
-        # self.geometry(f"{self.window_width_pref}x{self.window_height_pref}")
-        # self.state("normal")
-
-        # Configure grid layout (4x4):
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_columnconfigure((2, 3), weight=0)
-        self.grid_rowconfigure((0, 1, 2), weight=1)
+        # Configure class container:
+        self.class_container = customtkinter.CTkFrame(self, corner_radius=0)
+        self.class_container.grid(row=0, column=0, sticky="nsew")
+        self.class_container.grid_columnconfigure(1, weight=1)
+        self.class_container.grid_columnconfigure((2, 3), weight=0)
+        self.class_container.grid_rowconfigure((0, 1, 2), weight=1)
+        print(self.class_container)
 
         # Create left bar frame for chat history and new chat button:
-        self.left_chats_bar = customtkinter.CTkFrame(self, width=140, corner_radius=0)
+        self.left_chats_bar = customtkinter.CTkFrame(self.class_container, width=140, corner_radius=0)
         self.left_chats_bar.grid(row=0, column=0, rowspan=4, sticky="nsew")
         self.left_chats_bar.grid_rowconfigure(1, weight=1)
         self.new_chat_button = customtkinter.CTkButton(self.left_chats_bar, command=self.new_chat_click)
@@ -59,20 +86,20 @@ class TextModels(ControllerFrame):
         self.theme_mode_label = customtkinter.CTkLabel(self.left_chats_bar, text="Appearance Mode:")
         self.theme_mode_label.grid(row=2, column=0, padx=20, pady=(10, 0))
         self.theme_mode_options = customtkinter.CTkOptionMenu(self.left_chats_bar, values=["Light", "Dark", "System"],
-                                                              command=self.change_theme_mode)
+                                                              command=change_theme_mode)
         self.theme_mode_options.grid(row=3, column=0, padx=20, pady=(10, 10), sticky="s")
 
         # Create input and send button:
-        self.input = customtkinter.CTkTextbox(self, height=60)
+        self.input = customtkinter.CTkTextbox(self.class_container, height=60)
         self.input.grid(row=3, column=1, columnspan=2, padx=(20, 0), pady=(20, 20), sticky="nsew")
         self.input.bind("<FocusIn>", self.on_input_focus_in)
         self.input.bind("<FocusOut>", self.on_input_focus_out)
-        self.send_button = customtkinter.CTkButton(master=self, fg_color="transparent", border_width=2, text_color=("gray10", "#DCE4EE"), text="Send", command=self.on_send_button_click)
+        self.send_button = customtkinter.CTkButton(master=self.class_container, fg_color="transparent", border_width=2, text_color=("gray10", "#DCE4EE"), text="Send", command=self.on_send_button_click)
         self.bind("<Return>", lambda event: self.enter_clicked(event))
         self.send_button.grid(row=3, column=3, padx=(20, 20), pady=(20, 20), sticky="nsew")
 
         # Create chat space frame
-        self.chat_space_frame = customtkinter.CTkFrame(self)
+        self.chat_space_frame = customtkinter.CTkFrame(self.class_container)
         self.chat_space_frame.grid(row=0, column=1, rowspan=3, columnspan=2, padx=(20, 0), pady=(20, 0), sticky="nsew")
         self.selected_model_label = customtkinter.CTkLabel(self.chat_space_frame, text="Selected Model:", anchor="center")
         self.selected_model_label.grid(row=0, column=0, padx=20, pady=(10, 10), sticky='ne')
@@ -84,7 +111,7 @@ class TextModels(ControllerFrame):
         self.chat_space_frame.grid_columnconfigure(2, weight=1)
 
         # Create options frame:
-        self.options_frame = customtkinter.CTkFrame(self)
+        self.options_frame = customtkinter.CTkFrame(self.class_container)
         self.options_frame.grid(row=0, rowspan=3, column=3, padx=(20, 20), pady=(20, 0), sticky="nsew")
 
         # Menu button:
@@ -111,8 +138,9 @@ class TextModels(ControllerFrame):
         self.role_textbox.grid(row=3, column=0, columnspan=3, padx=5, pady=(10, 10), sticky='nsew')
         self.remember_previous_messages = customtkinter.CTkCheckBox(self.options_frame, text="Remember previous messages")
         self.remember_previous_messages.bind("<Button-1>", self.on_remember_previous_messages_click)
-
         self.remember_previous_messages.grid(row=4, column=0, columnspan=3, padx=5, pady=(10, 10), sticky='nsew')
+        self.debug_button = customtkinter.CTkButton(self.options_frame, text="Debug", command=self.debug)
+        self.debug_button.grid(row=5, column=0, columnspan=3, padx=5, pady=(10, 10), sticky='nsew')
 
         # Set default values and configure:
         self.new_chat_button.configure(text="New Chat")
@@ -131,12 +159,18 @@ class TextModels(ControllerFrame):
         # Load previous chat to chat history:
         self.load_previous_chats_to_chat_history()
 
+    def debug(self):
+        pass
+        # Debug, check models:
+        # openai.api_key = os.getenv("OPENAI_API_KEY")
+        # model_list = openai.Model.list()
+        # for model in model_list.data:
+        #     print(model.id)
+
     def load_previous_chats_to_chat_history(self):
         if os.path.exists("chats"):
             chats_list = os.listdir("chats")
             chats_list.reverse()
-            chats_frame_height = self.chat_history_frame.cget("height")
-            chats_frame_height2 = self.left_chats_bar.grid_info()
             max_chats = 30
             i = 0
 
@@ -196,11 +230,6 @@ class TextModels(ControllerFrame):
             messages=messages
         )
 
-        # Debug, check models:
-        # model_list = openai.Model.list()
-        # for model in model_list.data:
-        #     print(model.id)
-
         # Get response into chat space:
         complete_message = ""
         for chunk in chat_completion:
@@ -220,7 +249,7 @@ class TextModels(ControllerFrame):
             with open("config.json", "r+") as config_file:
                 config_parameters = json.load(config_file)
                 config_parameters["chats_counter"] += 1
-                self.write_data_to_json_file(config_parameters, "config.json")
+                write_data_to_json_file(config_parameters, "config.json")
 
             self.chat_id = config_parameters["chats_counter"]
 
@@ -245,7 +274,7 @@ class TextModels(ControllerFrame):
                 json.dump(chat_file_data, chat_file)
                 self.role_textbox.configure(state="disabled")   # Disable role textbox after first message
 
-            self.delete_elements_in_frame(self.chat_history_frame)
+            delete_elements_in_frame(self.chat_history_frame)
             self.load_previous_chats_to_chat_history()
 
         with open(f"chats/chat_{self.chat_id}.json", "r+") as chat_file:
@@ -262,7 +291,7 @@ class TextModels(ControllerFrame):
             chat_file_data["parameters"]["tokens_counter"] += tokens_consumed
             print("Debug, sum of tokens:", chat_file_data["parameters"]["tokens_counter"])
 
-            self.write_data_to_json_file(chat_file_data, f"chats/chat_{self.chat_id}.json")
+            write_data_to_json_file(chat_file_data, f"chats/chat_{self.chat_id}.json")
 
     def load_previous_messages_and_count_its_tokens(self, prompt):
         messages = []
@@ -287,31 +316,13 @@ class TextModels(ControllerFrame):
                 chat_data["parameters"]["tokens_counter"] += tokens_counter
 
                 messages.append({"role": "user", "content": prompt})
-                self.write_data_to_json_file(chat_data, f"chats/chat_{self.chat_id}.json")
+                write_data_to_json_file(chat_data, f"chats/chat_{self.chat_id}.json")
 
         else:  # If the conversation hasn't started yet:
             messages.append({"role": "system", "content": self.role_textbox.get("1.0", tkinter.END)})
             messages.append({"role": "user", "content": prompt})
 
         return messages
-
-    def create_default_config(self):
-        default_config_data = {
-            "chats_counter": 1,
-            "user_preferences": {
-                "model": "gpt-3.5-turbo",
-                "max_tokens": 2500,
-                "temperature": 1.0,
-                "theme": "dark",
-                "window_width": 1400,
-                "window_height": 800,
-                "full-screened": False,
-                "remember_previous_messages": False
-            }
-        }
-
-        with open("config.json", "w") as json_file:
-            json.dump(default_config_data, json_file)
 
     def check_correct_input(self):
         # Check if input is empty:
@@ -321,7 +332,6 @@ class TextModels(ControllerFrame):
         self.api_request(prompt)
 
     def new_chat_click(self):
-        print("new_chat_click")
         self.chat_id = None
         self.role_textbox.configure(state="normal")
         self.chat_space.configure(state="normal")
@@ -332,7 +342,7 @@ class TextModels(ControllerFrame):
         with open("config.json", "r+") as config_file:
             config_data = json.load(config_file)
             self.remember_previous_messages_pref = config_data["user_preferences"]["remember_previous_messages"] = self.remember_previous_messages.get()
-            self.write_data_to_json_file(config_data, "config.json")
+            write_data_to_json_file(config_data, "config.json")
 
     def on_input_focus_in(self, event):
         if self.input.get("1.0", tk.END) == "Send a message\n":
@@ -353,23 +363,12 @@ class TextModels(ControllerFrame):
     def change_model_event(self, new_model: str):
         pass
 
-    def change_theme_mode(self, new_appearance_mode: str):
-        customtkinter.set_appearance_mode(new_appearance_mode)
-
-    def delete_elements_in_frame(self, frame):
-        for widget in frame.winfo_children():
-            widget.destroy()
-
-    def write_data_to_json_file(self, data, file_path):
-        with open(file_path, "w") as file:
-            json.dump(data, file)
-
     def count_tokens_for_text(self, text):
         encoding = tiktoken.encoding_for_model(self.selected_model_options.get())
         return len(encoding.encode(text))
 
     def make_window_fullscreen(self):
-        self.state('zoomed')
+        self.controller.state('zoomed')
 
     def enter_clicked(self, event):
         if not (event.state & 0x1):  # Check if Shift key is not pressed
