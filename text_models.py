@@ -7,6 +7,7 @@ import threading
 import json
 import datetime
 import tiktoken
+from customtkinter import CTkFrame, CTkButton, CTkLabel, CTkOptionMenu, CTkTextbox, CTkEntry, CTkSlider, CTkCheckBox
 
 from controller_frame import ControllerFrame
 
@@ -39,7 +40,50 @@ def change_theme_mode(new_appearance_mode: str):
     customtkinter.set_appearance_mode(new_appearance_mode)
 
 
+def delete_elements_in_frame(frame):
+    frame.children.clear()
+
+
+def change_temperature_event(new_scaling: str):
+    new_scaling_float = int(new_scaling.replace("%", "")) / 100
+    customtkinter.set_widget_scaling(new_scaling_float)
+
+
 class TextModels(ControllerFrame):
+    debug_button: CTkButton
+    chat_id: None
+    remember_previous_messages: CTkCheckBox
+    role_textbox: CTkTextbox
+    role_label: CTkLabel
+    temperature_value_label: CTkLabel
+    temperature_sidebar: CTkSlider
+    temperature_label: CTkLabel
+    max_tokens_entry: CTkEntry
+    max_tokens_label: CTkLabel
+    menu_button: CTkButton
+    input: CTkTextbox
+    options_frame: CTkFrame
+    chat_space: CTkTextbox
+    selected_model_options: CTkOptionMenu
+    selected_model_label: CTkLabel
+    chat_space_frame: CTkFrame
+    send_button: CTkButton
+    theme_mode_options: CTkOptionMenu
+    theme_mode_label: CTkLabel
+    chat_history_frame: CTkFrame
+    new_chat_button: CTkButton
+    remember_previous_messages_pref: object
+    fullscreened_pref: object
+    window_height_pref: object
+    window_width_pref: object
+    theme_mode_pref: object
+    temperature_pref: object
+    max_tokens_pref: object
+    model_pref: object
+    left_chats_bar: CTkFrame
+    class_container: CTkFrame
+    chat_count: object
+
     def __init__(self, master, controller):
         ControllerFrame.__init__(self, master, controller)
         self.master.class_container = None
@@ -88,18 +132,21 @@ class TextModels(ControllerFrame):
         self.input.grid(row=3, column=1, columnspan=2, padx=(20, 0), pady=(20, 20), sticky="nsew")
         self.input.bind("<FocusIn>", self.on_input_focus_in)
         self.input.bind("<FocusOut>", self.on_input_focus_out)
-        self.send_button = customtkinter.CTkButton(master=self.class_container, fg_color="transparent", border_width=2, text_color=("gray10", "#DCE4EE"), text="Send", command=self.on_send_button_click)
-        self.bind("<Return>", lambda event: self.enter_clicked(event))
+        self.send_button = customtkinter.CTkButton(master=self.class_container, fg_color="transparent", border_width=2,
+                                                   text_color=("gray10", "#DCE4EE"), text="Send",
+                                                   command=self.on_send_button_click)
+        self.controller.bind("<Return>", lambda event: self.enter_clicked(event))
         self.send_button.grid(row=3, column=3, padx=(20, 20), pady=(20, 20), sticky="nsew")
 
         # Create chat space frame
         self.chat_space_frame = customtkinter.CTkFrame(self.class_container)
         self.chat_space_frame.grid(row=0, column=1, rowspan=3, columnspan=2, padx=(20, 0), pady=(20, 0), sticky="nsew")
-        self.selected_model_label = customtkinter.CTkLabel(self.chat_space_frame, text="Selected Model:", anchor="center")
+        self.selected_model_label = customtkinter.CTkLabel(self.chat_space_frame, text="Selected Model:",
+                                                           anchor="center")
         self.selected_model_label.grid(row=0, column=0, padx=20, pady=(10, 10), sticky='ne')
         self.selected_model_options = customtkinter.CTkOptionMenu(self.chat_space_frame, values=["gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-4"], command=self.change_model_event)
         self.selected_model_options.grid(row=0, column=1, padx=20, pady=(10, 10), sticky='nw')
-        self.chat_space = customtkinter.CTkTextbox(self.chat_space_frame, wrap="word")
+        self.chat_space = customtkinter.CTkTextbox(self.chat_space_frame, wrap="word", font=("New Times Roma", 14))
         self.chat_space.grid(row=1, rowspan=2, column=0, columnspan=3, padx=(20, 0), pady=(20, 0), sticky="nsew")
         self.chat_space_frame.grid_rowconfigure(1, weight=1)
         self.chat_space_frame.grid_columnconfigure(2, weight=1)
@@ -109,7 +156,7 @@ class TextModels(ControllerFrame):
         self.options_frame.grid(row=0, rowspan=3, column=3, padx=(20, 20), pady=(20, 0), sticky="nsew")
 
         # Menu button:
-        self.menu_button = customtkinter.CTkButton(self.options_frame, text="Go back to the Menu", font=("New Times Roma", 16), command=self.on_menu_button_click)
+        self.menu_button = customtkinter.CTkButton(self.options_frame, text="Go back to the Menu", font=("New Times Roman", 16), command=self.on_menu_button_click)
         self.menu_button.grid(row=0, column=0, columnspan=3, padx=(10, 10), pady=(10, 10), sticky="nsew")
 
         # Max tokens and temperature:
@@ -147,7 +194,7 @@ class TextModels(ControllerFrame):
             self.remember_previous_messages.select()
         if self.fullscreened_pref:
             self.after(1, self.make_window_fullscreen)
-        self.input.after(40, self.input.focus_set)
+        self.input.after(100, self.input.focus_set)
         self.chat_id = None
 
         # Load previous chat to chat history:
@@ -235,7 +282,6 @@ class TextModels(ControllerFrame):
 
         self.chat_space.insert(tk.END, "\n\n")
         self.chat_space.configure(state="disabled")
-
         self.save_chat_to_file(prompt, complete_message)
 
     def save_chat_to_file(self, prompt, response):
@@ -269,7 +315,7 @@ class TextModels(ControllerFrame):
                 self.role_textbox.configure(state="disabled")   # Disable role textbox after first message
 
             # self.delete_elements_in_frame(self.class_container.children["!ctkframe"])
-            self.delete_elements_in_frame(self.chat_history_frame)
+            delete_elements_in_frame(self.chat_history_frame)
             self.load_previous_chats_to_chat_history()
 
         with open(f"chats/chat_{self.chat_id}.json", "r+") as chat_file:
@@ -309,7 +355,7 @@ class TextModels(ControllerFrame):
                 # Save counted tokens (prompt and response are counted later):
                 chat_data["parameters"]["tokens_counter"] += tokens_counter
 
-                messages.append({"role": "user", "content": prompt})
+                messages.append({"role": "user", "content": "\n" + prompt})
                 write_data_to_json_file(chat_data, f"chats/chat_{self.chat_id}.json")
 
         else:  # If the conversation hasn't started yet:
@@ -350,15 +396,8 @@ class TextModels(ControllerFrame):
         formatted_value = format(self.temperature_sidebar.get(), '.2f')
         self.temperature_value_label.configure(text=str(formatted_value))
 
-    def change_temperature_event(self, new_scaling: str):
-        new_scaling_float = int(new_scaling.replace("%", "")) / 100
-        customtkinter.set_widget_scaling(new_scaling_float)
-
     def change_model_event(self, new_model: str):
         pass
-
-    def delete_elements_in_frame(self, frame):
-        frame.children.clear()
 
     def count_tokens_for_text(self, text):
         encoding = tiktoken.encoding_for_model(self.selected_model_options.get())
@@ -368,7 +407,7 @@ class TextModels(ControllerFrame):
         self.controller.state('zoomed')
 
     def enter_clicked(self, event):
-        if not (event.state & 0x1):  # Check if Shift key is not pressed
+        if not (event.state and 0x1):  # Check if Shift key is not pressed
             threading.Thread(target=self.check_correct_input).start()
 
     def on_menu_button_click(self):
