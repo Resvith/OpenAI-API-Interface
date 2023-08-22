@@ -36,7 +36,7 @@ class App(customtkinter.CTk):
         # self.show_frame("Menu")
         # self.change_geometry(400, 400)
         # self.change_min_size(400, 400)
-        self.show_frame("TextModels")
+        self.show_frame("ImageModels")
         self.change_geometry(1400, 800)
         self.change_min_size(1100, 580)
 
