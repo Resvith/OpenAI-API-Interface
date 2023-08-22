@@ -13,7 +13,7 @@ from controller_frame import ControllerFrame
 
 def create_default_config():
     default_config_data = {
-        "chats_counter": 1,
+        "chats_counter": 0,
         "user_preferences": {
             "model": "gpt-3.5-turbo",
             "max_tokens": 2500,
@@ -33,11 +33,6 @@ def create_default_config():
 def write_data_to_json_file(data, file_path):
     with open(file_path, "w") as file:
         json.dump(data, file)
-
-
-def delete_elements_in_frame(frame):
-    for widget in frame.winfo_children():
-        widget.destroy()
 
 
 def change_theme_mode(new_appearance_mode: str):
@@ -73,7 +68,6 @@ class TextModels(ControllerFrame):
         self.class_container.grid_columnconfigure(1, weight=1)
         self.class_container.grid_columnconfigure((2, 3), weight=0)
         self.class_container.grid_rowconfigure((0, 1, 2), weight=1)
-        print(self.class_container)
 
         # Create left bar frame for chat history and new chat button:
         self.left_chats_bar = customtkinter.CTkFrame(self.class_container, width=140, corner_radius=0)
@@ -274,7 +268,8 @@ class TextModels(ControllerFrame):
                 json.dump(chat_file_data, chat_file)
                 self.role_textbox.configure(state="disabled")   # Disable role textbox after first message
 
-            delete_elements_in_frame(self.chat_history_frame)
+            # self.delete_elements_in_frame(self.class_container.children["!ctkframe"])
+            self.delete_elements_in_frame(self.chat_history_frame)
             self.load_previous_chats_to_chat_history()
 
         with open(f"chats/chat_{self.chat_id}.json", "r+") as chat_file:
@@ -289,7 +284,6 @@ class TextModels(ControllerFrame):
             # Count tokens for prompt and response:
             tokens_consumed = self.count_tokens_for_text(prompt + response)
             chat_file_data["parameters"]["tokens_counter"] += tokens_consumed
-            print("Debug, sum of tokens:", chat_file_data["parameters"]["tokens_counter"])
 
             write_data_to_json_file(chat_file_data, f"chats/chat_{self.chat_id}.json")
 
@@ -362,6 +356,9 @@ class TextModels(ControllerFrame):
 
     def change_model_event(self, new_model: str):
         pass
+
+    def delete_elements_in_frame(self, frame):
+        frame.children.clear()
 
     def count_tokens_for_text(self, text):
         encoding = tiktoken.encoding_for_model(self.selected_model_options.get())
