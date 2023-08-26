@@ -9,6 +9,11 @@ import json
 from controller_frame import ControllerFrame
 
 
+def write_data_to_json_file(data, file_path):
+    with open(file_path, "w") as file:
+        json.dump(data, file)
+
+
 class ImageModels(ControllerFrame):
     def create_widgets(self):
         # Image Space
@@ -33,11 +38,11 @@ class ImageModels(ControllerFrame):
         self.size_label = customtkinter.CTkLabel(self.size_frame, text="Size of Image:", font=("New Times Rome", 20))
         self.size_label.grid(row=0, column=0, sticky="w", padx=10, pady=10)
         self.size = tk.StringVar()
-        self.size_radiobutton_256 = customtkinter.CTkRadioButton(self.size_frame, text="256x256", font=("New Times Rome", 14), variable=self.size, value="256x256")
+        self.size_radiobutton_256 = customtkinter.CTkRadioButton(self.size_frame, text="256x256", font=("New Times Rome", 14), variable=self.size, value="256x256", command=self.on_size_change)
         self.size_radiobutton_256.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
-        self.size_radiobutton_512 = customtkinter.CTkRadioButton(self.size_frame, text="512x512", font=("New Times Rome", 14), variable=self.size, value="512x512")
+        self.size_radiobutton_512 = customtkinter.CTkRadioButton(self.size_frame, text="512x512", font=("New Times Rome", 14), variable=self.size, value="512x512", command=self.on_size_change)
         self.size_radiobutton_512.grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
-        self.size_radiobutton_1024 = customtkinter.CTkRadioButton(self.size_frame, text="1024x1024", font=("New Times Rome", 14), variable=self.size, value="1024x1024")
+        self.size_radiobutton_1024 = customtkinter.CTkRadioButton(self.size_frame, text="1024x1024", font=("New Times Rome", 14), variable=self.size, value="1024x1024", command=self.on_size_change)
         self.size_radiobutton_1024.grid(row=2, column=1, sticky="nsew", padx=10, pady=10)
 
         # Number of Images
@@ -54,8 +59,10 @@ class ImageModels(ControllerFrame):
         self.save_label = customtkinter.CTkLabel(self.save_frame, text="Save:", font=("New Times Rome", 20))
         self.save_label.grid(row=0, column=0, sticky="w", padx=10, pady=10)
         self.save_links = customtkinter.CTkCheckBox(self.save_frame, text="links", font=("New Times Rome", 14))
+        self.save_links.bind("<Button-1>", self.on_save_links_click)
         self.save_links.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
         self.save_images = customtkinter.CTkCheckBox(self.save_frame, text="images", font=("New Times Rome", 14))
+        self.save_images.bind("<Button-1>", self.on_save_image_click)
         self.save_images.grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
 
         self.option_bar_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
@@ -89,6 +96,25 @@ class ImageModels(ControllerFrame):
             self.save_links.select()
         if self.save_images_pref:
             self.save_images.select()
+
+    def on_size_change(self):
+        with open("config.json", "r+") as config_file:
+            config_data = json.load(config_file)
+            self.size_of_image_pref = config_data["image_models"]["user_preferences"]["size_of_image"] = self.size.get()
+            print(self.size_of_image_pref)
+            write_data_to_json_file(config_data, "config.json")
+
+    def on_save_image_click(self, event):
+        with open("config.json", "r+") as config_file:
+            config_data = json.load(config_file)
+            self.save_images_pref = config_data["image_models"]["user_preferences"]["save_images"] = self.save_images.get()
+            write_data_to_json_file(config_data, "config.json")
+
+    def on_save_links_click(self, event):
+        with open("config.json", "r+") as config_file:
+            config_data = json.load(config_file)
+            self.save_links_pref = config_data["image_models"]["user_preferences"]["save_links"] = self.save_links.get()
+            write_data_to_json_file(config_data, "config.json")
 
     def submit_button_click(self, event):
         threading.Thread(target=self.submit_async).start()
