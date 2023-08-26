@@ -12,25 +12,6 @@ from customtkinter import CTkFrame, CTkButton, CTkLabel, CTkOptionMenu, CTkTextb
 from controller_frame import ControllerFrame
 
 
-def create_default_config():
-    default_config_data = {
-        "chats_counter": 0,
-        "user_preferences": {
-            "model": "gpt-3.5-turbo",
-            "max_tokens": 2500,
-            "temperature": 1.0,
-            "theme": "dark",
-            "window_width": 1400,
-            "window_height": 800,
-            "full-screened": False,
-            "remember_previous_messages": False
-        }
-    }
-
-    with open("config.json", "w") as json_file:
-        json.dump(default_config_data, json_file)
-
-
 def write_data_to_json_file(data, file_path):
     with open(file_path, "w") as file:
         json.dump(data, file)
@@ -91,20 +72,20 @@ class TextModels(ControllerFrame):
     def create_widgets(self):
         # Create config file if no exists:
         if not (os.path.exists("config.json")):
-            create_default_config()
+            self.controller.create_default_config()
 
         # Load config file:
         with open("config.json", "r") as config_file:
             config_data = json.load(config_file)
-            self.chat_count = config_data["chats_counter"]
-            self.model_pref = config_data["user_preferences"]["model"]
-            self.max_tokens_pref = config_data["user_preferences"]["max_tokens"]
-            self.temperature_pref = config_data["user_preferences"]["temperature"]
-            self.theme_mode_pref = config_data["user_preferences"]["theme"]
-            self.window_width_pref = config_data["user_preferences"]["window_width"]
-            self.window_height_pref = config_data["user_preferences"]["window_height"]
-            self.fullscreened_pref = config_data["user_preferences"]["full-screened"]
-            self.remember_previous_messages_pref = config_data["user_preferences"]["remember_previous_messages"]
+            self.chat_count = config_data["text_models"]["chats_counter"]
+            self.model_pref = config_data["text_models"]["user_preferences"]["model"]
+            self.max_tokens_pref = config_data["text_models"]["user_preferences"]["max_tokens"]
+            self.temperature_pref = config_data["text_models"]["user_preferences"]["temperature"]
+            self.theme_mode_pref = config_data["text_models"]["user_preferences"]["theme"]
+            self.window_width_pref = config_data["text_models"]["user_preferences"]["window_width"]
+            self.window_height_pref = config_data["text_models"]["user_preferences"]["window_height"]
+            self.fullscreened_pref = config_data["text_models"]["user_preferences"]["full-screened"]
+            self.remember_previous_messages_pref = config_data["text_models"]["user_preferences"]["remember_previous_messages"]
 
         # Configure class container:
         self.class_container = customtkinter.CTkFrame(self, corner_radius=0)
@@ -288,10 +269,10 @@ class TextModels(ControllerFrame):
         if self.chat_id is None:
             with open("config.json", "r+") as config_file:
                 config_parameters = json.load(config_file)
-                config_parameters["chats_counter"] += 1
+                config_parameters["text_models"]["chats_counter"] += 1
                 write_data_to_json_file(config_parameters, "config.json")
 
-            self.chat_id = config_parameters["chats_counter"]
+            self.chat_id = config_parameters["text_models"]["chats_counter"]
 
             is_folder_chats_exist = os.path.exists("chats")
             if not is_folder_chats_exist:
@@ -381,7 +362,7 @@ class TextModels(ControllerFrame):
     def on_remember_previous_messages_click(self, event):
         with open("config.json", "r+") as config_file:
             config_data = json.load(config_file)
-            self.remember_previous_messages_pref = config_data["user_preferences"]["remember_previous_messages"] = self.remember_previous_messages.get()
+            self.remember_previous_messages_pref = config_data["text_models"]["user_preferences"]["remember_previous_messages"] = self.remember_previous_messages.get()
             write_data_to_json_file(config_data, "config.json")
 
     def on_input_focus_in(self, event):

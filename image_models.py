@@ -4,6 +4,7 @@ import os
 import openai
 import threading
 import webbrowser
+import json
 
 from controller_frame import ControllerFrame
 
@@ -31,12 +32,12 @@ class ImageModels(ControllerFrame):
         self.size_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
         self.size_label = customtkinter.CTkLabel(self.size_frame, text="Size of Image:", font=("New Times Rome", 20))
         self.size_label.grid(row=0, column=0, sticky="w", padx=10, pady=10)
-        size = tk.StringVar()
-        self.size_radiobutton_256 = customtkinter.CTkRadioButton(self.size_frame, text="256x256", font=("New Times Rome", 14), variable=size, value="256x256")
+        self.size = tk.StringVar()
+        self.size_radiobutton_256 = customtkinter.CTkRadioButton(self.size_frame, text="256x256", font=("New Times Rome", 14), variable=self.size, value="256x256")
         self.size_radiobutton_256.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
-        self.size_radiobutton_512 = customtkinter.CTkRadioButton(self.size_frame, text="512x512", font=("New Times Rome", 14), variable=size, value="512x512")
+        self.size_radiobutton_512 = customtkinter.CTkRadioButton(self.size_frame, text="512x512", font=("New Times Rome", 14), variable=self.size, value="512x512")
         self.size_radiobutton_512.grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
-        self.size_radiobutton_1024 = customtkinter.CTkRadioButton(self.size_frame, text="1024x1024", font=("New Times Rome", 14), variable=size, value="1024x1024")
+        self.size_radiobutton_1024 = customtkinter.CTkRadioButton(self.size_frame, text="1024x1024", font=("New Times Rome", 14), variable=self.size, value="1024x1024")
         self.size_radiobutton_1024.grid(row=2, column=1, sticky="nsew", padx=10, pady=10)
 
         # Number of Images
@@ -66,8 +67,28 @@ class ImageModels(ControllerFrame):
         self.submit_button.grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
 
         # Set default values
-        size.set("1024x1024")
-        self.number_of_images_value.insert(0, "1")
+        self.set_default_values()
+
+    def set_default_values(self):
+        # Create config file if it doesn't exist
+        if not (os.path.exists("config.json")):
+            self.controller.create_default_config()
+
+        # Load config file to variables:
+        with open("config.json", "r") as config_file:
+            config_data = json.load(config_file)
+            self.size_of_image_pref = config_data["image_models"]["user_preferences"]["size_of_image"]
+            self.number_of_images_pref = config_data["image_models"]["user_preferences"]["number_of_images"]
+            self.save_links_pref = config_data["image_models"]["user_preferences"]["save_links"]
+            self.save_images_pref = config_data["image_models"]["user_preferences"]["save_images"]
+
+        # Set default values
+        self.size.set(self.size_of_image_pref)
+        self.number_of_images_value.insert(0, self.number_of_images_pref)
+        if self.save_links_pref:
+            self.save_links.select()
+        if self.save_images_pref:
+            self.save_images.select()
 
     def submit_button_click(self, event):
         threading.Thread(target=self.submit_async).start()

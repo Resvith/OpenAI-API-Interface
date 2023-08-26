@@ -1,4 +1,5 @@
 import customtkinter
+import json
 
 from text_models import TextModels
 from menu import Menu
@@ -11,7 +12,6 @@ customtkinter.set_default_color_theme("blue")
 class App(customtkinter.CTk):
     def __init__(self):
         customtkinter.CTk.__init__(self)
-        self.class_mapping = None
         self.frames = None
         self.container = None
         self.title("OpenAI API Interface")
@@ -26,7 +26,7 @@ class App(customtkinter.CTk):
 
         #   Frames
         self.frames = {}
-        for F in (Menu, TextModels, ImageModels):  # defined subclasses of BaseFrame
+        for F in (Menu, TextModels, ImageModels):
             class_name = F.__name__
             frame = F(self.container, self)
             self.frames[class_name] = frame
@@ -48,6 +48,36 @@ class App(customtkinter.CTk):
         frame.grid(row=0, column=0)
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_rowconfigure(0, weight=1)
+
+    @staticmethod
+    def create_default_config():
+        default_config_data = {
+            "text_models": {
+                "chats_counter": 0,
+                "user_preferences": {
+                    "model": "gpt-3.5-turbo",
+                    "max_tokens": 2500,
+                    "temperature": 1.0,
+                    "theme": "dark",
+                    "window_width": 1400,
+                    "window_height": 800,
+                    "full-screened": False,
+                    "remember_previous_messages": False
+                }
+            },
+
+            "image_models": {
+                "user_preferences": {
+                    "size_of_image": "1024x1024",
+                    "number_of_images": 1,
+                    "save_links": True,
+                    "save_images": False
+                }
+            }
+        }
+
+        with open("config.json", "w") as json_file:
+            json.dump(default_config_data, json_file)
 
     def change_geometry(self, width, height):
         self.geometry(f"{width}x{height}")

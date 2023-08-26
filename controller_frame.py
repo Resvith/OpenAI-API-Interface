@@ -12,4 +12,3 @@ class ControllerFrame(customtkinter.CTkFrame):
 
     def create_widgets(self):
         raise NotImplementedError
-
