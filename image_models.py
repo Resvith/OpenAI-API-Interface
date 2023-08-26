@@ -7,6 +7,7 @@ import webbrowser
 import json
 import io
 import urllib.request
+import requests
 
 from controller_frame import ControllerFrame
 from PIL import Image
@@ -44,11 +45,11 @@ class ImageModels(ControllerFrame):
         self.size_label = customtkinter.CTkLabel(self.size_frame, text="Size of Image:", font=("New Times Rome", 20))
         self.size_label.grid(row=0, column=0, sticky="w", padx=10, pady=10)
         self.size = tk.StringVar()
-        self.size_radiobutton_256 = customtkinter.CTkRadioButton(self.size_frame, text="256x256", font=("New Times Rome", 14), variable=self.size, value="256x256", command=self.on_size_change)
+        self.size_radiobutton_256 = customtkinter.CTkRadioButton(self.size_frame, text="256x256", font=("New Times Rome", 14), variable=self.size, value="256x256", command=self.on_size_radiobutton_change)
         self.size_radiobutton_256.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
-        self.size_radiobutton_512 = customtkinter.CTkRadioButton(self.size_frame, text="512x512", font=("New Times Rome", 14), variable=self.size, value="512x512", command=self.on_size_change)
+        self.size_radiobutton_512 = customtkinter.CTkRadioButton(self.size_frame, text="512x512", font=("New Times Rome", 14), variable=self.size, value="512x512", command=self.on_size_radiobutton_change)
         self.size_radiobutton_512.grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
-        self.size_radiobutton_1024 = customtkinter.CTkRadioButton(self.size_frame, text="1024x1024", font=("New Times Rome", 14), variable=self.size, value="1024x1024", command=self.on_size_change)
+        self.size_radiobutton_1024 = customtkinter.CTkRadioButton(self.size_frame, text="1024x1024", font=("New Times Rome", 14), variable=self.size, value="1024x1024", command=self.on_size_radiobutton_change)
         self.size_radiobutton_1024.grid(row=2, column=1, sticky="nsew", padx=10, pady=10)
 
         # Number of Images
@@ -141,7 +142,38 @@ class ImageModels(ControllerFrame):
             print(prompt, i, response["data"][i]["url"])
 
         # Saves:
+        prompt = prompt[:40]
         self.save_links_to_file(response["data"], prompt, n)
+        self.save_images_to_files(response["data"], prompt, n)
+
+    def save_images_to_files(self, images, prompt, n):
+        # If option off then return
+        if not self.save_images_pref:
+            return
+
+        # Take id from links.json file:
+        with open("image models/links.json", "r+") as links_file:
+            links_data = json.load(links_file)
+            link_id = links_data["id"]
+
+        # Check if path and file exists:
+        if not os.path.exists("image models"):
+            os.mkdir("image models")
+        if not os.path.exists("image models/images"):
+            os.mkdir("image models/images")
+
+        # Save images to existing file:
+        for i in range(n):
+            response = requests.get(images[i]["url"])
+            if response.status_code == 200:
+                with open(f"image models/images/{link_id+i}_{prompt}.png", "wb") as file:
+                    file.write(response.content)
+
+        # Update id in links.json file:
+        with open("image models/links.json", "r+") as links_file:
+            links_data = json.load(links_file)
+            links_data["id"] = link_id + n
+            write_data_to_json_file(links_data, "image models/links.json")
 
     def save_links_to_file(self, links, prompt, n):
         # If option off then return
@@ -172,7 +204,7 @@ class ImageModels(ControllerFrame):
             links_data["id"] = link_id
             write_data_to_json_file(links_data, "image models/links.json")
 
-    def on_size_change(self):
+    def on_size_radiobutton_change(self):
         with open("config.json", "r+") as config_file:
             config_data = json.load(config_file)
             self.size_of_image_pref = config_data["image_models"]["user_preferences"]["size_of_image"] = self.size.get()
