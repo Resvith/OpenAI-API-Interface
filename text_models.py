@@ -14,7 +14,7 @@ from controller_frame import ControllerFrame
 
 def write_data_to_json_file(data, file_path):
     with open(file_path, "w") as file:
-        json.dump(data, file)
+        json.dump(data, file, indent=4)
 
 
 def change_theme_mode(new_appearance_mode: str):

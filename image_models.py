@@ -14,7 +14,7 @@ from PIL import Image
 
 def write_data_to_json_file(data, file_path):
     with open(file_path, "w") as file:
-        json.dump(data, file)
+        json.dump(data, file, indent=4)
 
 
 class ImageModels(ControllerFrame):
@@ -139,6 +139,38 @@ class ImageModels(ControllerFrame):
             self.counter += 2
 
             print(prompt, i, response["data"][i]["url"])
+
+        # Saves:
+        self.save_links_to_file(response["data"], prompt, n)
+
+    def save_links_to_file(self, links, prompt, n):
+        # If option off then return
+        if not self.save_links_pref:
+            return
+
+        # Check if path and file exists:
+        if not os.path.exists("image models"):
+            os.mkdir("image models")
+        if not os.path.exists("image models/links.json"):
+            with open("image models/links.json", "a"):
+                initialize_file = {"id": 0, "links": {}}
+                write_data_to_json_file(initialize_file, "image models/links.json")
+
+        # Save links to existing file:
+        with open("image models/links.json", "r+") as links_file:
+            links_data = json.load(links_file)
+            link_id = links_data["id"]
+
+            # If prompt doesn't exist already then create it:
+            if prompt not in links_data["links"]:
+                links_data["links"][prompt] = {}
+
+            for i in range(n):
+                links_data["links"][prompt][link_id] = links[i]["url"]
+                link_id += 1
+
+            links_data["id"] = link_id
+            write_data_to_json_file(links_data, "image models/links.json")
 
     def on_size_change(self):
         with open("config.json", "r+") as config_file:
