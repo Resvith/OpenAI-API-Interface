@@ -5,8 +5,11 @@ import openai
 import threading
 import webbrowser
 import json
+import io
+import urllib.request
 
 from controller_frame import ControllerFrame
+from PIL import ImageTk, Image
 
 
 def write_data_to_json_file(data, file_path):
@@ -97,11 +100,37 @@ class ImageModels(ControllerFrame):
         if self.save_images_pref:
             self.save_images.select()
 
+    def submit_async(self):
+        def link_clicked(image_link):
+            webbrowser.open_new_tab(image_link)
+
+        openai.api_key = os.environ.get("OPENAI_API_KEY")
+        prompt = self.input.get("1.0", tk.END)
+        n = int(self.number_of_images_value.get())
+        self.input.delete("1.0", tk.END)
+        response = openai.Image.create(
+            prompt=prompt,
+            n=n,
+            size=self.size_of_image_pref
+        )
+
+        for i in range(n):
+            # Show image in tkinter:
+            with urllib.request.urlopen(response["data"][i]["url"]) as image_url:
+                f = io.BytesIO(image_url.read())
+            img = Image.open(f)
+            image = customtkinter.CTkImage(img, size=(512, 512))
+
+            link = customtkinter.CTkLabel(self.image_space, text=prompt, font=("New Times Rome", 24), justify="left", image=image, compound="bottom")
+            link.bind("<Button-1>", lambda event, url=response["data"][i]["url"]: link_clicked(url))
+            print(prompt, i, response["data"][i]["url"])
+            link.grid(row=self.counter, column=0, sticky="nsew", padx=10, pady=10)
+            self.counter += 1
+
     def on_size_change(self):
         with open("config.json", "r+") as config_file:
             config_data = json.load(config_file)
             self.size_of_image_pref = config_data["image_models"]["user_preferences"]["size_of_image"] = self.size.get()
-            print(self.size_of_image_pref)
             write_data_to_json_file(config_data, "config.json")
 
     def on_save_image_click(self, event):
@@ -123,30 +152,3 @@ class ImageModels(ControllerFrame):
         threading.Thread(target=self.submit_async).start()
 
     counter = 0
-
-    def submit_async(self):
-        def link_clicked(link):
-            webbrowser.open_new_tab(link)
-
-        n = 1
-        openai.api_key = os.environ.get("OPENAI_API_KEY")
-        prompt = self.input.get("1.0", tk.END)
-        self.input.delete("1.0", tk.END)
-        response = openai.Image.create(
-            prompt=prompt,
-            n=n,
-            size="1024x1024"
-        )
-
-        for i in range(n):
-            link = customtkinter.CTkLabel(self.image_space, text=prompt, font=("New Times Rome", 24), text_color="blue", justify="left")
-            link.bind("<Button-1>", lambda event, url=response["data"][i]["url"]:
-            link_clicked(url))
-            print("test", i, response["data"][i]["url"])
-            link.grid(row=self.counter, column=0, sticky="nsew", padx=10, pady=10)
-            self.counter += 1
-
-
-
-
-
