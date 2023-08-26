@@ -110,6 +110,11 @@ class ImageModels(ControllerFrame):
         openai.api_key = os.environ.get("OPENAI_API_KEY")
         prompt = self.input.get("1.0", tk.END)
         prompt = prompt.strip()
+
+        # Check if prompt is empty:
+        if prompt == "":
+            return
+
         n = int(self.number_of_images_value.get())
         self.input.delete("1.0", tk.END)
         response = openai.Image.create(
