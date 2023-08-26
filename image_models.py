@@ -9,7 +9,7 @@ import io
 import urllib.request
 
 from controller_frame import ControllerFrame
-from PIL import ImageTk, Image
+from PIL import Image
 
 
 def write_data_to_json_file(data, file_path):
@@ -18,10 +18,13 @@ def write_data_to_json_file(data, file_path):
 
 
 class ImageModels(ControllerFrame):
+    # Variables:
+    counter = 0
+
     def create_widgets(self):
         # Image Space
-        self.image_space = customtkinter.CTkScrollableFrame(self)
-        self.image_space.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        self.image_space = customtkinter.CTkScrollableFrame(self, label_anchor="nw")
+        self.image_space.grid(row=0, column=0, sticky="nsew", padx=10)
 
         # Input
         self.input = customtkinter.CTkTextbox(self, font=("New Times Rome", 24))
@@ -73,7 +76,7 @@ class ImageModels(ControllerFrame):
         # Submit Button
         self.submit_button = customtkinter.CTkButton(self, text="Submit", font=("New Times Rome", 24))
         self.submit_button.bind("<Button-1>", self.submit_button_click)
-        self.submit_button.bind("<Return>", self.submit_enter)
+        self.controller.bind("<Return>", lambda event: self.submit_enter(event))
         self.submit_button.grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
 
         # Set default values
@@ -106,6 +109,7 @@ class ImageModels(ControllerFrame):
 
         openai.api_key = os.environ.get("OPENAI_API_KEY")
         prompt = self.input.get("1.0", tk.END)
+        prompt = prompt.strip()
         n = int(self.number_of_images_value.get())
         self.input.delete("1.0", tk.END)
         response = openai.Image.create(
@@ -121,11 +125,15 @@ class ImageModels(ControllerFrame):
             img = Image.open(f)
             image = customtkinter.CTkImage(img, size=(512, 512))
 
-            link = customtkinter.CTkLabel(self.image_space, text=prompt, font=("New Times Rome", 24), justify="left", image=image, compound="bottom")
-            link.bind("<Button-1>", lambda event, url=response["data"][i]["url"]: link_clicked(url))
+            image_label = customtkinter.CTkLabel(self.image_space, text=prompt, font=("New Times Rome", 20), anchor="w", justify="left")
+            image_label.grid(row=self.counter, column=0, pady=(5, 10), sticky="nsew")
+            image_in_app = customtkinter.CTkLabel(self.image_space, text="", image=image)
+            image_in_app.bind("<Button-1>", lambda event, url=response["data"][i]["url"]: link_clicked(url))
+            image_in_app.bind("<Enter>", lambda event, hover=image_in_app: hover.configure(cursor="hand2"))
+            image_in_app.grid(row=self.counter + 1, column=0, pady=(5, 10), sticky="nsew")
+            self.counter += 2
+
             print(prompt, i, response["data"][i]["url"])
-            link.grid(row=self.counter, column=0, sticky="nsew", padx=10, pady=10)
-            self.counter += 1
 
     def on_size_change(self):
         with open("config.json", "r+") as config_file:
@@ -149,6 +157,5 @@ class ImageModels(ControllerFrame):
         threading.Thread(target=self.submit_async).start()
 
     def submit_enter(self, event):
-        threading.Thread(target=self.submit_async).start()
-
-    counter = 0
+        if not (event.state and 0x1):  # Check if Shift key is not pressed
+            threading.Thread(target=self.submit_async).start()

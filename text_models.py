@@ -295,7 +295,6 @@ class TextModels(ControllerFrame):
                 json.dump(chat_file_data, chat_file)
                 self.role_textbox.configure(state="disabled")   # Disable role textbox after first message
 
-            # self.delete_elements_in_frame(self.class_container.children["!ctkframe"])
             delete_elements_in_frame(self.chat_history_frame)
             self.load_previous_chats_to_chat_history()
 
