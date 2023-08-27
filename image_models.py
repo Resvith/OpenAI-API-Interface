@@ -37,7 +37,7 @@ class ImageModels(ControllerFrame):
         # Go to Menu
         self.menu_button = customtkinter.CTkButton(self.option_bar_frame, text="Menu", font=("New Times Rome", 24))
         self.menu_button.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-        self.menu_button.bind("<Button-1>", lambda event: self.controller.show_frame("Menu"))
+        self.menu_button.bind("<Button-1>", command=self.go_to_menu)
 
         # Size
         self.size_frame = customtkinter.CTkFrame(self.option_bar_frame, fg_color="transparent")
@@ -221,6 +221,12 @@ class ImageModels(ControllerFrame):
             config_data = json.load(config_file)
             self.save_links_pref = config_data["image_models"]["user_preferences"]["save_links"] = self.save_links.get()
             write_data_to_json_file(config_data, "config.json")
+
+    def go_to_menu(self, event):
+        self.controller.show_frame("Menu")
+        self.controller.change_geometry(400, 400)
+        self.controller.change_min_size(400, 400)
+        self.controller.is_resizable(False)
 
     def submit_button_click(self, event):
         threading.Thread(target=self.submit_async).start()

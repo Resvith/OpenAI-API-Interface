@@ -394,6 +394,7 @@ class TextModels(ControllerFrame):
         self.controller.show_frame("Menu")
         self.controller.change_geometry(400, 400)
         self.controller.change_min_size(400, 400)
+        self.controller.is_resizable(False)
 
     def on_send_button_click(self):
         threading.Thread(target=self.check_correct_input).start()

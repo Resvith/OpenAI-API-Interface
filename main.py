@@ -35,7 +35,8 @@ class App(customtkinter.CTk):
         # Show start window
         # self.show_frame("Menu")
         # self.change_geometry(400, 400)
-        # self.change_min_size(400, 400)
+        # self.is_resizable(False)
+
         self.show_frame("ImageModels")
         self.change_geometry(1400, 800)
         self.change_min_size(1100, 580)
@@ -84,6 +85,9 @@ class App(customtkinter.CTk):
 
     def change_min_size(self, width, height):
         self.minsize(width, height)
+
+    def is_resizable(self, boolean):
+        self.resizable(boolean, boolean)
 
 
 if __name__ == "__main__":
