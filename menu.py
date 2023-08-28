@@ -42,6 +42,6 @@ class Menu(ControllerFrame):
 
     def on_image_models_button_click(self):
         self.controller.is_resizable(True)
-        self.controller.show_frame("ImageModels")
+        self.controller.show_frame("ImageModelsCreate")
         self.controller.change_geometry(1400, 800)
         self.controller.change_min_size(1100, 580)

@@ -18,7 +18,7 @@ def write_data_to_json_file(data, file_path):
         json.dump(data, file, indent=4)
 
 
-class ImageModels(ControllerFrame):
+class ImageModelsCreate(ControllerFrame):
     # Variables:
     counter = 0
 

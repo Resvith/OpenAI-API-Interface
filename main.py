@@ -3,7 +3,8 @@ import json
 
 from text_models import TextModels
 from menu import Menu
-from image_models_create import ImageModels
+from image_models_create import ImageModelsCreate
+from image_models_edit import ImageModelsEdit
 
 customtkinter.set_appearance_mode("Dark")
 customtkinter.set_default_color_theme("blue")
@@ -26,7 +27,7 @@ class App(customtkinter.CTk):
 
         #   Frames
         self.frames = {}
-        for F in (Menu, TextModels, ImageModels):
+        for F in (Menu, TextModels, ImageModelsCreate, ImageModelsEdit):
             class_name = F.__name__
             frame = F(self.container, self)
             self.frames[class_name] = frame
@@ -37,7 +38,7 @@ class App(customtkinter.CTk):
         # self.change_geometry(400, 400)
         # self.is_resizable(False)
 
-        self.show_frame("ImageModels")
+        self.show_frame("ImageModelsEdit")
         self.change_geometry(1400, 800)
         self.change_min_size(1100, 580)
 
