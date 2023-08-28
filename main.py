@@ -3,7 +3,7 @@ import json
 
 from text_models import TextModels
 from menu import Menu
-from image_models import ImageModels
+from image_models_create import ImageModels
 
 customtkinter.set_appearance_mode("Dark")
 customtkinter.set_default_color_theme("blue")
