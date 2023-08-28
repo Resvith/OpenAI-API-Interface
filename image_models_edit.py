@@ -9,6 +9,8 @@ import io
 import urllib.request
 import requests
 
+from tkinter import filedialog
+
 from controller_frame import ControllerFrame
 from PIL import Image
 
@@ -45,8 +47,8 @@ class ImageModelsEdit(ControllerFrame):
         self.add_file_button.grid(row=0, column=0, sticky="w", padx=10)
 
         # Loaded file info:
-        self.loaded_file_info = customtkinter.CTkLabel(self.top_frame, text="No file loaded", font=("New Times Rome", 20), anchor="w")
-        self.loaded_file_info.grid(row=0, column=1, sticky="nsew", padx=10)
+        self.loaded_file_info_label = customtkinter.CTkLabel(self.top_frame, text="No file loaded", font=("New Times Rome", 20), anchor="w")
+        self.loaded_file_info_label.grid(row=0, column=1, sticky="nsew", padx=10)
 
         # Switch variations frame and label:
         self.switch_variations = customtkinter.CTkFrame(self.top_frame, fg_color="transparent")
@@ -113,9 +115,21 @@ class ImageModelsEdit(ControllerFrame):
         self.send_button = customtkinter.CTkButton(self.class_container, text="Send", font=("New Times Rome", 20))
         self.send_button.grid(row=2, column=1, sticky="nsew", padx=10, pady=10)
 
-
     def on_add_file_button_click(self):
-        pass
+        self.file_path = filedialog.askopenfilename(title="Choose image file", filetypes=[("Image files", ".jpg .jpeg .png")])
+        if not self.file_path:
+            print("zamkniety")
+            return
+
+        self.loaded_file_info_label.configure(text=f"Selected: {self.file_path.split('/')[-1]}")
+        img_data = Image.open(self.file_path)
+
+        self.image_frame.children.clear()
+        image = customtkinter.CTkImage(img_data, size=(512, 512))
+        image_in_app = customtkinter.CTkLabel(self.image_frame, image=image, text="")
+        image_in_app.grid(row=0, column=0, sticky="nsew")
+
+
     def set_default_values(self):
         # Create config file if it doesn't exist
         if not (os.path.exists("config.json")):
