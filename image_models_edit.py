@@ -8,6 +8,7 @@ import json
 import io
 import urllib.request
 import requests
+import cv2 as cv
 
 from tkinter import filedialog
 
@@ -47,6 +48,9 @@ class ImageModelsEdit(ControllerFrame):
         # Add file button:
         self.add_file_button = customtkinter.CTkButton(self.top_frame, text="+", font=("New Times Rome", 20), width=50, height=50, command=self.on_add_file_button_click)
         self.add_file_button.grid(row=0, column=0, sticky="w", padx=10)
+        # Debug, delete later:
+        self.mask_button = customtkinter.CTkButton(self.top_frame, text="Add mask", font=("New Times Rome", 20), width=50, height=50, command=self.on_add_mask_button_click)
+        self.mask_button.grid(row=1, column=0, sticky="w", padx=10)
 
         # Loaded file info:
         self.loaded_file_info_label = customtkinter.CTkLabel(self.top_frame, text="No file loaded", font=("New Times Rome", 20), anchor="w")
@@ -111,18 +115,94 @@ class ImageModelsEdit(ControllerFrame):
         self.size_of_generated_image_label = customtkinter.CTkLabel(self.request_parameter_frame, text="Size of generated image:", font=("New Times Rome", 20), anchor="w")
         self.size_of_generated_image_label.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
         self.size_of_generated_image_option_menu = customtkinter.CTkOptionMenu(self.request_parameter_frame, font=("New Times Rome", 20), values=['256x256', '512x512', '1024x1024'])
+        self.size_of_generated_image_option_menu.set("1024x1024")   # Debug
         self.size_of_generated_image_option_menu.grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
 
         # Send button:
         self.send_button = customtkinter.CTkButton(self.class_container, text="Send", font=("New Times Rome", 20), command=self.on_send_button_click)
         self.send_button.grid(row=2, column=1, sticky="nsew", padx=10, pady=10)
+        self.show_editable_window("C:\\Users\\Admin\\Pictures\\wp4471360.png")
 
+    def show_editable_window(self, file_path):
+        img_original = cv.imread(file_path)
+        img_editable = img_original.copy()
+        img_front = img_original.copy()
+
+        # variables
+        circle_size = 8
+        ix = -1
+        iy = -1
+        drawing = False
+        all_coordinates = []
+
+        def check_if_it_is_last_coordinate(range):
+            first_point = all_coordinates[0]
+            last_point = all_coordinates[-1]
+
+            if abs(first_point[0] - last_point[0]) < range and abs(first_point[1] - last_point[1] < range):
+                nonlocal drawing
+                drawing = False
+                cut_image()
+
+        def cut_image():
+            pass
+
+        def draw_outline_with_lines(event, x, y, flags, param):
+
+            nonlocal ix, iy, drawing, circle_size, img_front, img_editable, all_coordinates
+
+            if event == cv.EVENT_LBUTTONDOWN:
+                drawing = True
+                ix = x
+                iy = y
+                all_coordinates.append((x, y))
+                print(all_coordinates)
+                if len(all_coordinates) == 1:
+                    cv.circle(img_front, center=(x, y), radius=circle_size, color=(0,0,255), thickness=circle_size)
+                    img_editable = img_front.copy()
+
+                else:
+                    cv.line(img_front, pt1=(ix, iy),
+                                      pt2=(x, y),
+                                      color=(0, 255, 255),
+                                      thickness=5)
+                    img_editable = img_front.copy()
+                    check_if_it_is_last_coordinate(circle_size)
+
+            elif event == cv.EVENT_MOUSEMOVE:
+                if drawing:
+                    img_front = img_editable.copy()
+                    cv.line(img_front, pt1=(ix, iy),
+                                      pt2=(x, y),
+                                      color=(0, 255, 255),
+                                      thickness=5)
+
+        cv.namedWindow(winname="Title of Popup Window")
+        cv.setMouseCallback("Title of Popup Window",
+                             draw_outline_with_lines)
+
+        while True:
+            cv.imshow("Title of Popup Window", img_front)
+
+            if cv.waitKey(10) == 27:
+                break
+
+        cv.destroyAllWindows()
+
+    def on_add_mask_button_click(self):
+        self.file_mask_path = filedialog.askopenfilename(title="Choose image file",
+                                                         filetypes=[("Image files", ".jpg .jpeg .png")])
+        if not self.file_mask_path:
+            return
+
+        self.mask_label = customtkinter.CTkLabel(self.top_frame, text="Mask", font=("New Times Rome", 20))
+        self.mask_label.grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
+        self.mask_label.configure(text=f"Selected: {self.file_mask_path.split('/')[-1]}")
     def on_send_button_click(self):
         self.api_request()
 
     def api_request(self):
         if not self.file_path:
-            print("Debug: No file selected")
             return
 
         # Get request parameters:
@@ -133,6 +213,7 @@ class ImageModelsEdit(ControllerFrame):
 
         response = openai.Image.create_edit(
             image=open(self.file_path, "rb"),
+            mask=open(self.file_mask_path, "rb"),
             prompt=input_text,
             n=number_of_variations,
             size=size_of_generated_image
@@ -152,6 +233,7 @@ class ImageModelsEdit(ControllerFrame):
         image = customtkinter.CTkImage(img_data, size=(512, 512))
         image_in_app = customtkinter.CTkLabel(self.image_frame, image=image, text="")
         image_in_app.grid(row=0, column=0, sticky="nsew")
+        self.show_editable_window(self.file_path)
 
     def set_default_values(self):
         # Create config file if it doesn't exist
