@@ -126,8 +126,9 @@ class ImageModelsEdit(ControllerFrame):
 
     def show_editable_window(self, file_path):
         img_original = cv.imread(file_path)
-        img_editable = img_original.copy()
-        img_front = img_original.copy()
+        img_editable = cv.cvtColor(img_original, cv.COLOR_RGB2RGBA)
+        img_front = cv.cvtColor(img_original, cv.COLOR_RGB2RGBA)
+
 
         # variables
         circle_size = 8
@@ -135,8 +136,6 @@ class ImageModelsEdit(ControllerFrame):
         iy = -1
         drawing = False
         all_coordinates = []
-
-
 
         def check_if_it_is_last_coordinate(range):
             first_point = all_coordinates[0]
@@ -152,7 +151,7 @@ class ImageModelsEdit(ControllerFrame):
             all_coordinates.pop()
             coordinates_array = np.array(all_coordinates, dtype=np.int32)
             print("Debug: Filling!")
-            cv.fillPoly(img_front, [coordinates_array], (255, 0, 0))
+            cv.fillPoly(img_front, [coordinates_array], (0, 0, 0, 0))
             all_coordinates.clear()
 
         def draw_outline_with_lines(event, x, y, flags, param):
