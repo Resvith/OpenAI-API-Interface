@@ -9,6 +9,7 @@ import io
 import urllib.request
 import requests
 import cv2 as cv
+import numpy as np
 
 from tkinter import filedialog
 
@@ -135,6 +136,8 @@ class ImageModelsEdit(ControllerFrame):
         drawing = False
         all_coordinates = []
 
+
+
         def check_if_it_is_last_coordinate(range):
             first_point = all_coordinates[0]
             last_point = all_coordinates[-1]
@@ -145,7 +148,12 @@ class ImageModelsEdit(ControllerFrame):
                 cut_image()
 
         def cut_image():
-            pass
+            print("Debug: cut_image")
+            all_coordinates.pop()
+            coordinates_array = np.array(all_coordinates, dtype=np.int32)
+            print("Debug: Filling!")
+            cv.fillPoly(img_front, [coordinates_array], (255, 0, 0))
+            all_coordinates.clear()
 
         def draw_outline_with_lines(event, x, y, flags, param):
 
