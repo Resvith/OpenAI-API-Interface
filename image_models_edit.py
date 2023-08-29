@@ -22,6 +22,9 @@ def write_data_to_json_file(data, file_path):
 
 class ImageModelsEdit(ControllerFrame):
 
+    def __init__(self, master, controller):
+        super().__init__(master, controller)
+
     def create_widgets(self):
         # Container for all widgets:
         self.class_container = customtkinter.CTkFrame(self, fg_color="transparent")
@@ -32,7 +35,6 @@ class ImageModelsEdit(ControllerFrame):
         self.class_container.grid_rowconfigure(1, weight=20)
         self.class_container.grid_rowconfigure(2, weight=1)
         self.class_container.grid_rowconfigure(3, weight=0)
-
 
         # Top frame:
         self.top_frame = customtkinter.CTkFrame(self.class_container, fg_color="transparent")
@@ -112,13 +114,35 @@ class ImageModelsEdit(ControllerFrame):
         self.size_of_generated_image_option_menu.grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
 
         # Send button:
-        self.send_button = customtkinter.CTkButton(self.class_container, text="Send", font=("New Times Rome", 20))
+        self.send_button = customtkinter.CTkButton(self.class_container, text="Send", font=("New Times Rome", 20), command=self.on_send_button_click)
         self.send_button.grid(row=2, column=1, sticky="nsew", padx=10, pady=10)
+
+    def on_send_button_click(self):
+        self.api_request()
+
+    def api_request(self):
+        if not self.file_path:
+            print("Debug: No file selected")
+            return
+
+        # Get request parameters:
+        number_of_variations = self.number_of_variations_option_menu.get()
+        size_of_generated_image = self.size_of_generated_image_option_menu.get()
+        input_text = self.input_textbox.get("1.0", tk.END)
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+
+        response = openai.Image.create_edit(
+            image=open(self.file_path, "rb"),
+            prompt=input_text,
+            n=number_of_variations,
+            size=size_of_generated_image
+        )
+
+        print(response["data"][0]["url"])
 
     def on_add_file_button_click(self):
         self.file_path = filedialog.askopenfilename(title="Choose image file", filetypes=[("Image files", ".jpg .jpeg .png")])
         if not self.file_path:
-            print("zamkniety")
             return
 
         self.loaded_file_info_label.configure(text=f"Selected: {self.file_path.split('/')[-1]}")
@@ -128,7 +152,6 @@ class ImageModelsEdit(ControllerFrame):
         image = customtkinter.CTkImage(img_data, size=(512, 512))
         image_in_app = customtkinter.CTkLabel(self.image_frame, image=image, text="")
         image_in_app.grid(row=0, column=0, sticky="nsew")
-
 
     def set_default_values(self):
         # Create config file if it doesn't exist
