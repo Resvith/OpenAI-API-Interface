@@ -39,8 +39,8 @@ class App(customtkinter.CTk):
         # self.is_resizable(False)
 
         self.show_frame("ImageModelsEdit")
-        self.change_geometry(1400, 800)
-        self.change_min_size(1100, 580)
+        self.change_geometry(1600, 875)
+        self.change_min_size(1600, 875)
 
     def show_frame(self, class_name):
         for frame in self.frames.values():

@@ -17,12 +17,17 @@ from controller_frame import ControllerFrame
 from PIL import Image
 
 
-global file_mask_path
+file_mask_path = ""
 
 
 def write_data_to_json_file(data, file_path):
     with open(file_path, "w") as file:
         json.dump(data, file, indent=4)
+
+
+def delete_temp_file(file_path):
+    print("Deleting temp file")
+    os.remove(file_path)
 
 
 class ImageModelsEdit(ControllerFrame):
@@ -49,13 +54,6 @@ class ImageModelsEdit(ControllerFrame):
         self.top_frame.grid_columnconfigure(2, weight=2)
         self.top_frame.grid_rowconfigure(0, weight=1)
 
-        # Add file button:
-        self.add_file_button = customtkinter.CTkButton(self.top_frame, text="+", font=("New Times Rome", 20), width=50, height=50, command=self.on_add_file_button_click)
-        self.add_file_button.grid(row=0, column=0, sticky="w", padx=10)
-        # Debug, delete later:
-        self.mask_button = customtkinter.CTkButton(self.top_frame, text="Add mask", font=("New Times Rome", 20), width=50, height=50, command=self.on_add_mask_button_click)
-        self.mask_button.grid(row=1, column=0, sticky="w", padx=10)
-
         # Loaded file info:
         self.loaded_file_info_label = customtkinter.CTkLabel(self.top_frame, text="No file loaded", font=("New Times Rome", 20), anchor="w")
         self.loaded_file_info_label.grid(row=0, column=1, sticky="nsew", padx=10)
@@ -75,7 +73,19 @@ class ImageModelsEdit(ControllerFrame):
         # Image frame:
         self.image_frame = customtkinter.CTkFrame(self.class_container)
         self.image_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
-        self.image_frame.grid_columnconfigure(0, weight=1)
+
+        # Buttons to select and edit image:
+        add_image_dark_mode = Image.open("img\\add_image_button_dark_mode.png")
+        add_image_light_mode = Image.open("img\\add_image_button_light_mode.png")
+        add_image_image = customtkinter.CTkImage(add_image_light_mode, add_image_dark_mode, size=(512, 512))
+        self.add_file_button = customtkinter.CTkButton(self.image_frame, text="", image=add_image_image, fg_color="transparent", command=self.on_add_file_button_click)
+        self.add_file_button.grid(row=0, column=0, sticky="w", padx=10, pady=10)
+
+        add_mask_dark_mode = Image.open("img\\add_mask_button_dark_mode.png")
+        add_mask_light_mode = Image.open("img\\add_mask_button_light_mode.png")
+        add_mask_image = customtkinter.CTkImage(add_mask_light_mode, add_mask_dark_mode, size=(512, 512))
+        self.add_mask_button = customtkinter.CTkButton(self.image_frame, text="", image=add_mask_image, fg_color="transparent", command=self.on_add_mask_button_click)
+        self.add_mask_button.grid(row=0, column=1, sticky="w", padx=10, pady=10)
 
         # Input:
         self.input_textbox = customtkinter.CTkTextbox(self.class_container, font=("New Times Rome", 20))
@@ -126,20 +136,21 @@ class ImageModelsEdit(ControllerFrame):
         self.send_button = customtkinter.CTkButton(self.class_container, text="Send", font=("New Times Rome", 20), command=self.on_send_button_click)
         self.send_button.grid(row=2, column=1, sticky="nsew", padx=10, pady=10)
 
-        # Mask editor instance:
-        global file_mask_path
-        file_mask_path = "C:\\Users\\Admin\\Pictures\\wp4471360.png"
-        MaskEditorWindow()
-
     def on_add_mask_button_click(self):
-        self.file_mask_path = filedialog.askopenfilename(title="Choose image file",
-                                                         filetypes=[("Image files", ".jpg .jpeg .png")])
-        if not self.file_mask_path:
+        global file_mask_path
+        if not self.file_path:
             return
 
-        self.mask_label = customtkinter.CTkLabel(self.top_frame, text="Mask", font=("New Times Rome", 20))
-        self.mask_label.grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
-        self.mask_label.configure(text=f"Selected: {self.file_mask_path.split('/')[-1]}")
+        # Mask editor instance:
+        file_mask_path = self.file_path
+        MaskEditorWindow()
+
+        # Load mask image:
+        img_data = Image.open("image models\\temp.png")
+        image = customtkinter.CTkImage(img_data, size=(512, 512))
+        image_in_app = customtkinter.CTkLabel(self.image_frame, image=image, text="")
+        image_in_app.grid(row=0, column=1, sticky="nsew")
+
     def on_send_button_click(self):
         self.api_request()
 
@@ -154,8 +165,7 @@ class ImageModelsEdit(ControllerFrame):
         openai.api_key = os.getenv("OPENAI_API_KEY")
 
         response = openai.Image.create_edit(
-            image=open(self.file_path, "rb"),
-            mask=open(self.file_mask_path, "rb"),
+            image=open("image models\\temp.png", "rb"),
             prompt=input_text,
             n=number_of_variations,
             size=size_of_generated_image
@@ -174,6 +184,7 @@ class ImageModelsEdit(ControllerFrame):
         self.image_frame.children.clear()
         image = customtkinter.CTkImage(img_data, size=(512, 512))
         image_in_app = customtkinter.CTkLabel(self.image_frame, image=image, text="")
+        image_in_app.bind("<Button-1>", command=self.on_add_mask_button_click)
         image_in_app.grid(row=0, column=0, sticky="nsew")
 
     def set_default_values(self):
@@ -190,6 +201,7 @@ class ImageModelsEdit(ControllerFrame):
         self.controller.change_geometry(400, 400)
         self.controller.change_min_size(400, 400)
         self.controller.is_resizable(False)
+        delete_temp_file("image models\\temp.png")
 
 
 class MaskEditorWindow:
