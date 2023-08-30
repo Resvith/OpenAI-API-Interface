@@ -41,7 +41,7 @@ class App(customtkinter.CTk):
 
         self.show_frame("AudioModels")
         self.change_geometry(1600, 875)
-        self.change_min_size(1600, 875)
+        # self.change_min_size(1600, 875)
 
     def show_frame(self, class_name):
         for frame in self.frames.values():

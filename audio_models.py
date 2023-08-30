@@ -1,6 +1,7 @@
 import tkinter as tk
 import customtkinter
 import threading
+import openai
 
 from tkinter import filedialog
 
@@ -31,7 +32,7 @@ class AudioModels(ControllerFrame):
         self.text_frame.grid(row=1, column=0, sticky="nsew")
         self.text_frame.grid_rowconfigure(0, weight=1)
         self.text_frame.grid_columnconfigure(0, weight=1)
-        self.textbox = customtkinter.CTkTextbox(self.text_frame, font=("New Times Rome", 20))
+        self.textbox = customtkinter.CTkTextbox(self.text_frame, font=("New Times Rome", 20), wrap="word")
         self.textbox.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
         # Send button:
@@ -52,3 +53,11 @@ class AudioModels(ControllerFrame):
         if not self.file_path:
             return
 
+        threading.Thread(target=self.api_request).start()
+
+    def api_request(self):
+        audio_file = open(self.file_path, "rb")
+        response = openai.Audio.transcribe("whisper-1", audio_file)
+
+        print(response)
+        self.textbox.insert(tk.END, response["text"])
