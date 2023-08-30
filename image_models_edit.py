@@ -214,13 +214,14 @@ class MaskEditorWindow:
         cv.setMouseCallback("Mark it what you want edit",
                             self.draw_outline_with_lines)
 
+        # Show editable window until it is closed
         while True:
             cv.imshow("Mark it what you want edit", self.img_front)
-
-            if cv.waitKey(10) == 27:
+            cv.waitKey(10)
+            if cv.getWindowProperty('Mark it what you want edit', cv.WND_PROP_VISIBLE) < 1:
                 break
 
-        cv.destroyAllWindows()
+    cv.destroyAllWindows()
 
     def check_if_it_is_last_coordinate(self, radius):
         first_point = self.all_coordinates[0]
