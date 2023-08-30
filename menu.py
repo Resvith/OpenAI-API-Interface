@@ -26,13 +26,19 @@ class Menu(ControllerFrame):
         self.image_models_label = customtkinter.CTkLabel(self.image_models_frame, text="Image Models:", font=("New Times Rome", 24), justify="center", anchor="center")
         self.image_models_label.grid(row=0, column=0, columnspan=2, sticky="nsew", pady=(25, 0))
         self.image_create_button = customtkinter.CTkButton(self.image_models_frame, text="Create", font=("New Times Rome", 20),
-                                                           command=self.on_image_models_button_click)
+                                                           command=self.on_image_models_create_button_click)
         self.image_create_button.grid(row=1, column=0, padx=10, pady=10, ipady=10)
-        self.image_edit_button = customtkinter.CTkButton(self.image_models_frame, text="Edit", font=("New Times Rome", 20))
+        self.image_edit_button = customtkinter.CTkButton(self.image_models_frame, text="Edit", font=("New Times Rome", 20), command=self.on_image_models_edit_button_click)
         self.image_edit_button.grid(row=1, column=1, padx=10, pady=10, ipady=10)
 
         self.audio_models_button = customtkinter.CTkButton(self.menu_container, text="Audio Models", font=("New Times Rome", 24))
         self.audio_models_button.grid(row=2, column=0, sticky="nsew", padx=50, pady=10)
+
+    def on_image_models_edit_button_click(self):
+        self.controller.is_resizable(True)
+        self.controller.show_frame("ImageModelsEdit")
+        self.controller.change_geometry(1600, 875)
+        self.controller.change_min_size(1100, 580)
 
     def on_text_models_button_click(self):
         self.controller.is_resizable(True)
@@ -40,7 +46,7 @@ class Menu(ControllerFrame):
         self.controller.change_geometry(1400, 800)
         self.controller.change_min_size(1100, 580)
 
-    def on_image_models_button_click(self):
+    def on_image_models_create_button_click(self):
         self.controller.is_resizable(True)
         self.controller.show_frame("ImageModelsCreate")
         self.controller.change_geometry(1400, 800)

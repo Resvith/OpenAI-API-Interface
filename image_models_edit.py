@@ -26,8 +26,8 @@ def write_data_to_json_file(data, file_path):
 
 
 def delete_temp_file(file_path):
-    print("Deleting temp file")
-    os.remove(file_path)
+    if os.path.exists(file_path):
+        os.remove(file_path)
 
 
 class ImageModelsEdit(ControllerFrame):
@@ -154,6 +154,15 @@ class ImageModelsEdit(ControllerFrame):
     def on_send_button_click(self):
         self.api_request()
 
+    def check_if_request_is_possible(self) -> bool:
+        if not self.file_path:
+            return False
+
+        if not os.path.exists("image models\\temp.png"):
+            return False
+
+        return True
+
     def api_request(self):
         if not self.file_path:
             return
@@ -164,6 +173,10 @@ class ImageModelsEdit(ControllerFrame):
         input_text = self.input_textbox.get("1.0", tk.END)
         openai.api_key = os.getenv("OPENAI_API_KEY")
 
+        if not self.check_if_request_is_possible():
+            print("Request is not possible")
+            return
+
         response = openai.Image.create_edit(
             image=open("image models\\temp.png", "rb"),
             prompt=input_text,
@@ -171,6 +184,7 @@ class ImageModelsEdit(ControllerFrame):
             size=size_of_generated_image
         )
 
+        os.remove("image models\\temp.png")
         print(response["data"][0]["url"])
 
     def on_add_file_button_click(self):
