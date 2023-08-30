@@ -17,6 +17,9 @@ from controller_frame import ControllerFrame
 from PIL import Image
 
 
+global file_mask_path
+
+
 def write_data_to_json_file(data, file_path):
     with open(file_path, "w") as file:
         json.dump(data, file, indent=4)
@@ -122,79 +125,11 @@ class ImageModelsEdit(ControllerFrame):
         # Send button:
         self.send_button = customtkinter.CTkButton(self.class_container, text="Send", font=("New Times Rome", 20), command=self.on_send_button_click)
         self.send_button.grid(row=2, column=1, sticky="nsew", padx=10, pady=10)
-        self.show_editable_window("C:\\Users\\Admin\\Pictures\\wp4471360.png")
 
-    def show_editable_window(self, file_path):
-        img_original = cv.imread(file_path)
-        img_editable = cv.cvtColor(img_original, cv.COLOR_RGB2RGBA)
-        img_front = cv.cvtColor(img_original, cv.COLOR_RGB2RGBA)
-
-
-        # variables
-        circle_size = 8
-        ix = -1
-        iy = -1
-        drawing = False
-        all_coordinates = []
-
-        def check_if_it_is_last_coordinate(range):
-            first_point = all_coordinates[0]
-            last_point = all_coordinates[-1]
-
-            if abs(first_point[0] - last_point[0]) < range and abs(first_point[1] - last_point[1] < range):
-                nonlocal drawing
-                drawing = False
-                cut_image()
-
-        def cut_image():
-            print("Debug: cut_image")
-            all_coordinates.pop()
-            coordinates_array = np.array(all_coordinates, dtype=np.int32)
-            print("Debug: Filling!")
-            cv.fillPoly(img_front, [coordinates_array], (0, 0, 0, 0))
-            all_coordinates.clear()
-
-        def draw_outline_with_lines(event, x, y, flags, param):
-
-            nonlocal ix, iy, drawing, circle_size, img_front, img_editable, all_coordinates
-
-            if event == cv.EVENT_LBUTTONDOWN:
-                drawing = True
-                ix = x
-                iy = y
-                all_coordinates.append((x, y))
-                print(all_coordinates)
-                if len(all_coordinates) == 1:
-                    cv.circle(img_front, center=(x, y), radius=circle_size, color=(0,0,255), thickness=circle_size)
-                    img_editable = img_front.copy()
-
-                else:
-                    cv.line(img_front, pt1=(ix, iy),
-                                      pt2=(x, y),
-                                      color=(0, 255, 255),
-                                      thickness=5)
-                    img_editable = img_front.copy()
-                    check_if_it_is_last_coordinate(circle_size)
-
-            elif event == cv.EVENT_MOUSEMOVE:
-                if drawing:
-                    img_front = img_editable.copy()
-                    cv.line(img_front, pt1=(ix, iy),
-                                      pt2=(x, y),
-                                      color=(0, 255, 255),
-                                      thickness=5)
-
-        cv.namedWindow(winname="Title of Popup Window")
-        cv.setMouseCallback("Title of Popup Window",
-                             draw_outline_with_lines)
-
-        while True:
-            cv.imshow("Title of Popup Window", img_front)
-
-            if cv.waitKey(10) == 27:
-                break
-
-        cv.destroyAllWindows()
+        # Mask editor instance:
+        global file_mask_path
+        file_mask_path = "C:\\Users\\Admin\\Pictures\\wp4471360.png"
+        MaskEditorWindow()
 
     def on_add_mask_button_click(self):
         self.file_mask_path = filedialog.askopenfilename(title="Choose image file",
@@ -240,7 +175,6 @@ class ImageModelsEdit(ControllerFrame):
         image = customtkinter.CTkImage(img_data, size=(512, 512))
         image_in_app = customtkinter.CTkLabel(self.image_frame, image=image, text="")
         image_in_app.grid(row=0, column=0, sticky="nsew")
-        self.show_editable_window(self.file_path)
 
     def set_default_values(self):
         # Create config file if it doesn't exist
@@ -256,3 +190,79 @@ class ImageModelsEdit(ControllerFrame):
         self.controller.change_geometry(400, 400)
         self.controller.change_min_size(400, 400)
         self.controller.is_resizable(False)
+
+
+class MaskEditorWindow:
+    def __init__(self):
+        super().__init__()
+
+        # variables
+        self.circle_size = 8
+        self.ix = -1
+        self.iy = -1
+        self.drawing = False
+        self.all_coordinates = []
+
+        self.show_editable_window(file_mask_path)
+
+    def show_editable_window(self, file_path):
+        self.img_original = cv.imread(file_path)
+        self.img_editable = cv.cvtColor(self.img_original, cv.COLOR_RGB2RGBA)
+        self.img_front = cv.cvtColor(self.img_original, cv.COLOR_RGB2RGBA)
+
+        cv.namedWindow(winname="Mark it what you want edit")
+        cv.setMouseCallback("Mark it what you want edit",
+                            self.draw_outline_with_lines)
+
+        while True:
+            cv.imshow("Mark it what you want edit", self.img_front)
+
+            if cv.waitKey(10) == 27:
+                break
+
+        cv.destroyAllWindows()
+
+    def check_if_it_is_last_coordinate(self, radius):
+        first_point = self.all_coordinates[0]
+        last_point = self.all_coordinates[-1]
+
+        if abs(first_point[0] - last_point[0]) < radius and abs(first_point[1] - last_point[1] < radius):
+            self.drawing = False
+            self.cut_image()
+
+    def cut_image(self):
+        print("Debug: cut_image")
+        self.all_coordinates.pop()
+        coordinates_array = np.array(self.all_coordinates, dtype=np.int32)
+        print("Debug: Filling!")
+        cv.fillPoly(self.img_front, [coordinates_array], (0, 0, 0, 0))
+        self.all_coordinates.clear()
+
+    def draw_outline_with_lines(self, event, x, y, flags, param):
+        if event == cv.EVENT_LBUTTONDOWN:
+            self.drawing = True
+            self.ix = x
+            self.iy = y
+            self.all_coordinates.append((x, y))
+            print(self.all_coordinates)
+            if len(self.all_coordinates) == 1:
+                cv.circle(self.img_front, center=(x, y), radius=self.circle_size, color=(0,0,255), thickness=self.circle_size)
+                self.img_editable = self.img_front.copy()
+
+            else:
+                cv.line(self.img_front, pt1=(self.ix, self.iy),
+                                  pt2=(x, y),
+                                  color=(0, 255, 255),
+                                  thickness=5)
+                self.img_editable = self.img_front.copy()
+                self.check_if_it_is_last_coordinate(self.circle_size)
+
+        elif event == cv.EVENT_MOUSEMOVE:
+            if self.drawing:
+                self.img_front = self.img_editable.copy()
+                cv.line(self.img_front, pt1=(self.ix, self.iy),
+                                  pt2=(x, y),
+                                  color=(0, 255, 255),
+                                  thickness=5)
+
+
