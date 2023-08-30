@@ -207,8 +207,9 @@ class MaskEditorWindow:
 
     def show_editable_window(self, file_path):
         self.img_original = cv.imread(file_path)
-        self.img_editable = cv.cvtColor(self.img_original, cv.COLOR_RGB2RGBA)
-        self.img_front = cv.cvtColor(self.img_original, cv.COLOR_RGB2RGBA)
+        self.img_alpha = cv.cvtColor(self.img_original, cv.COLOR_RGB2RGBA)
+        self.img_editable = self.img_alpha.copy()
+        self.img_front = self.img_alpha.copy()
 
         cv.namedWindow(winname="Mark it what you want edit")
         cv.setMouseCallback("Mark it what you want edit",
@@ -219,9 +220,14 @@ class MaskEditorWindow:
             cv.imshow("Mark it what you want edit", self.img_front)
             cv.waitKey(10)
             if cv.getWindowProperty('Mark it what you want edit', cv.WND_PROP_VISIBLE) < 1:
+                self.save_image_like_png(self.img_alpha)
                 break
 
     cv.destroyAllWindows()
+
+    @staticmethod
+    def save_image_like_png(image):
+        cv.imwrite("image models\\temp.png", image)
 
     def check_if_it_is_last_coordinate(self, radius):
         first_point = self.all_coordinates[0]
@@ -232,11 +238,10 @@ class MaskEditorWindow:
             self.cut_image()
 
     def cut_image(self):
-        print("Debug: cut_image")
         self.all_coordinates.pop()
         coordinates_array = np.array(self.all_coordinates, dtype=np.int32)
-        print("Debug: Filling!")
         cv.fillPoly(self.img_front, [coordinates_array], (0, 0, 0, 0))
+        cv.fillPoly(self.img_alpha, [coordinates_array], (0, 0, 0, 0))
         self.all_coordinates.clear()
 
     def draw_outline_with_lines(self, event, x, y, flags, param):
@@ -245,7 +250,6 @@ class MaskEditorWindow:
             self.ix = x
             self.iy = y
             self.all_coordinates.append((x, y))
-            print(self.all_coordinates)
             if len(self.all_coordinates) == 1:
                 cv.circle(self.img_front, center=(x, y), radius=self.circle_size, color=(0,0,255), thickness=self.circle_size)
                 self.img_editable = self.img_front.copy()
