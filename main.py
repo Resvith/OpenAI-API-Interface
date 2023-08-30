@@ -1,6 +1,7 @@
 import customtkinter
 import json
 
+from audio_models import AudioModels
 from text_models import TextModels
 from menu import Menu
 from image_models_create import ImageModelsCreate
@@ -27,7 +28,7 @@ class App(customtkinter.CTk):
 
         #   Frames
         self.frames = {}
-        for F in (Menu, TextModels, ImageModelsCreate, ImageModelsEdit):
+        for F in (Menu, TextModels, ImageModelsCreate, ImageModelsEdit, AudioModels):
             class_name = F.__name__
             frame = F(self.container, self)
             self.frames[class_name] = frame
@@ -38,7 +39,7 @@ class App(customtkinter.CTk):
         # self.change_geometry(400, 400)
         # self.is_resizable(False)
 
-        self.show_frame("ImageModelsEdit")
+        self.show_frame("AudioModels")
         self.change_geometry(1600, 875)
         self.change_min_size(1600, 875)
 
