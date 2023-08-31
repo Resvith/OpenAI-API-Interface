@@ -75,9 +75,8 @@ class ImageModelsCreate(ControllerFrame):
         self.option_bar_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
 
         # Submit Button
-        self.submit_button = customtkinter.CTkButton(self, text="Submit", font=("New Times Rome", 24))
-        self.submit_button.bind("<Button-1>", self.submit_button_click)
-        self.controller.bind("<Return>", lambda event: self.submit_enter(event))
+        self.submit_button = customtkinter.CTkButton(self, text="Submit", font=("New Times Rome", 24), command=self.on_send_button_click)
+        self.bind("<Return>", lambda event: self.controller.enter_clicked(event, "ImageModelsCreate"))
         self.submit_button.grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
 
         # Set default values
@@ -228,9 +227,6 @@ class ImageModelsCreate(ControllerFrame):
         self.controller.change_min_size(400, 400)
         self.controller.is_resizable(False)
 
-    def submit_button_click(self, event):
+    def on_send_button_click(self):
         threading.Thread(target=self.submit_async).start()
 
-    def submit_enter(self, event):
-        if not (event.state and 0x1):  # Check if Shift key is not pressed
-            threading.Thread(target=self.submit_async).start()

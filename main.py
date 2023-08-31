@@ -39,9 +39,12 @@ class App(customtkinter.CTk):
         # self.change_geometry(400, 400)
         # self.is_resizable(False)
 
-        self.show_frame("AudioModels")
-        self.change_geometry(1600, 875)
-        # self.change_min_size(1600, 875)
+        self.show_frame("TextModels")
+        self.change_geometry(1400, 800)
+        self.change_min_size(1100, 600)
+
+        # When pressed enter, execute enter_clicked in actual frame:
+        self.bind("<Return>", lambda event: self.enter_clicked(event, self.actual_frame.__class__.__name__))
 
     def show_frame(self, class_name):
         for frame in self.frames.values():
@@ -51,6 +54,13 @@ class App(customtkinter.CTk):
         frame.grid(row=0, column=0)
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_rowconfigure(0, weight=1)
+        self.actual_frame = frame
+
+    def enter_clicked(self, event, class_name):
+        available_in = ["TextModels", "ImageModelsCreate", "ImageModelsEdit"]  # List of frames where event is available
+        if not (event.state and 0x1) and class_name in available_in:           # If not pressed shift and name in ^
+            frame = self.frames[class_name]
+            frame.on_send_button_click()
 
     @staticmethod
     def create_default_config():

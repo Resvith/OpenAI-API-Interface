@@ -116,7 +116,7 @@ class TextModels(ControllerFrame):
         self.send_button = customtkinter.CTkButton(master=self.class_container, fg_color="transparent", border_width=2,
                                                    text_color=("gray10", "#DCE4EE"), text="Send",
                                                    command=self.on_send_button_click)
-        self.controller.bind("<Return>", lambda event: self.enter_clicked(event))
+        self.bind("<Return>", lambda event: self.controller.enter_clicked(event, "TextModels"))
         self.send_button.grid(row=3, column=3, padx=(20, 20), pady=(20, 20), sticky="nsew")
 
         # Create chat space frame
@@ -184,10 +184,10 @@ class TextModels(ControllerFrame):
     def debug(self):
         pass
         # Debug, check models:
-        # openai.api_key = os.getenv("OPENAI_API_KEY")
-        # model_list = openai.Model.list()
-        # for model in model_list.data:
-        #     print(model.id)
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+        model_list = openai.Model.list()
+        for model in model_list.data:
+            print(model.id)
 
     def load_previous_chats_to_chat_history(self):
         if os.path.exists("chats"):
@@ -387,7 +387,9 @@ class TextModels(ControllerFrame):
         self.controller.state('zoomed')
 
     def enter_clicked(self, event):
+        print("Debug: Enter clicked")
         if not (event.state and 0x1):  # Check if Shift key is not pressed
+            print("Debug: Prompt send")
             threading.Thread(target=self.check_correct_input).start()
 
     def on_menu_button_click(self):
