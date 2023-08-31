@@ -61,8 +61,7 @@ class AudioModels(ControllerFrame):
 
         self.select_file_label.configure(text="Selected: " + self.file_path.split("/")[-1])
 
-
-    def on_send_button_click(self, event):
+    def on_send_button_click(self):
         if not self.file_path:
             return
 

@@ -192,12 +192,12 @@ class TextModels(ControllerFrame):
     def load_previous_chats_to_chat_history(self):
         if os.path.exists("chats"):
             chats_list = os.listdir("chats")
-            chats_list.reverse()
+            sorted_chat_list = sorted(chats_list, key=lambda x: os.path.getmtime(os.path.join("chats", x)), reverse=True)
             max_chats = 30
             i = 0
 
-            while len(chats_list) > i < max_chats:
-                button_name = chats_list[i]
+            while len(sorted_chat_list) > i < max_chats:
+                button_name = sorted_chat_list[i]
                 button_name = button_name.replace(".json", "")
                 button = customtkinter.CTkButton(self.chat_history_frame, text=button_name, anchor="center", font=("New Times Roma", 12), fg_color="transparent")
                 button.bind("<Button-1>", lambda event, bn=button_name: self.load_other_chat_config_and_chat_story(bn))
