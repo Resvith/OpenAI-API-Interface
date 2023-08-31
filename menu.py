@@ -31,7 +31,7 @@ class Menu(ControllerFrame):
         self.image_edit_button = customtkinter.CTkButton(self.image_models_frame, text="Edit", font=("New Times Rome", 20), command=self.on_image_models_edit_button_click)
         self.image_edit_button.grid(row=1, column=1, padx=10, pady=10, ipady=10)
 
-        self.audio_models_button = customtkinter.CTkButton(self.menu_container, text="Audio Models", font=("New Times Rome", 24))
+        self.audio_models_button = customtkinter.CTkButton(self.menu_container, text="Audio Models", font=("New Times Rome", 24), command=self.on_audio_models_button_click)
         self.audio_models_button.grid(row=2, column=0, sticky="nsew", padx=50, pady=10)
 
     def on_image_models_edit_button_click(self):
@@ -51,3 +51,9 @@ class Menu(ControllerFrame):
         self.controller.show_frame("ImageModelsCreate")
         self.controller.change_geometry(1400, 800)
         self.controller.change_min_size(1100, 580)
+
+    def on_audio_models_button_click(self):
+        self.controller.is_resizable(True)
+        self.controller.show_frame("AudioModels")
+        self.controller.change_geometry(1400, 800)
+        self.controller.change_min_size(600, 400)

@@ -38,12 +38,15 @@ class AudioModels(ControllerFrame):
         # Options bar:
         self.options_frame = customtkinter.CTkFrame(self.audio_models_container, fg_color="transparent")
         self.options_frame.grid(row=1, column=1, sticky="new")
+        self.menu_button = customtkinter.CTkButton(self.options_frame, text="Menu", font=("New Times Rome", 24))
+        self.menu_button.bind("<Button-1>",  command=self.on_menu_button_click)
+        self.menu_button.grid(row=0, column=0, sticky="new", padx=10, pady=10)
         self.choose_var = tk.StringVar()
         self.choose_transcribe = customtkinter.CTkRadioButton(self.options_frame, text="Transcribe", variable=self.choose_var, value="transcribe", font=("New Times Rome", 24))
-        self.choose_transcribe.grid(row=0, column=0, sticky="new", padx=10, pady=10)
+        self.choose_transcribe.grid(row=1, column=0, sticky="new", padx=10, pady=10)
         self.choose_transcribe.select()
         self.choose_translation = customtkinter.CTkRadioButton(self.options_frame, text="Translation", variable=self.choose_var, value="translation", font=("New Times Rome", 24))
-        self.choose_translation.grid(row=1, column=0, sticky="new", padx=10, pady=10)
+        self.choose_translation.grid(row=2, column=0, sticky="new", padx=10, pady=10)
 
         # Send button:
         self.send_button = customtkinter.CTkButton(self.audio_models_container, text="Send", font=("New Times Rome", 24))
@@ -76,3 +79,9 @@ class AudioModels(ControllerFrame):
             response = openai.Audio.translate("whisper-1", audio_file, target_language="es")
 
         self.textbox.insert(tk.END, response["text"])
+
+    def on_menu_button_click(self, event):
+        self.controller.show_frame("Menu")
+        self.controller.change_geometry(400, 400)
+        self.controller.change_min_size(400, 400)
+        self.controller.is_resizable(False)
