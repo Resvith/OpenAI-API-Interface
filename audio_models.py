@@ -35,6 +35,16 @@ class AudioModels(ControllerFrame):
         self.textbox = customtkinter.CTkTextbox(self.text_frame, font=("New Times Rome", 20), wrap="word")
         self.textbox.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
+        # Options bar:
+        self.options_frame = customtkinter.CTkFrame(self.audio_models_container, fg_color="transparent")
+        self.options_frame.grid(row=1, column=1, sticky="new")
+        self.choose_var = tk.StringVar()
+        self.choose_transcribe = customtkinter.CTkRadioButton(self.options_frame, text="Transcribe", variable=self.choose_var, value="transcribe", font=("New Times Rome", 24))
+        self.choose_transcribe.grid(row=0, column=0, sticky="new", padx=10, pady=10)
+        self.choose_transcribe.select()
+        self.choose_translation = customtkinter.CTkRadioButton(self.options_frame, text="Translation", variable=self.choose_var, value="translation", font=("New Times Rome", 24))
+        self.choose_translation.grid(row=1, column=0, sticky="new", padx=10, pady=10)
+
         # Send button:
         self.send_button = customtkinter.CTkButton(self.audio_models_container, text="Send", font=("New Times Rome", 24))
         self.send_button.bind("<Button-1>", self.on_send_button_click)
@@ -57,7 +67,12 @@ class AudioModels(ControllerFrame):
 
     def api_request(self):
         audio_file = open(self.file_path, "rb")
-        response = openai.Audio.transcribe("whisper-1", audio_file)
+        self.textbox.delete("1.0", tk.END)
 
-        print(response)
+        response = None
+        if self.choose_var.get() == "transcribe":
+            response = openai.Audio.transcribe("whisper-1", audio_file)
+        elif self.choose_var.get() == "translation":
+            response = openai.Audio.translate("whisper-1", audio_file, target_language="es")
+
         self.textbox.insert(tk.END, response["text"])
