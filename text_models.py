@@ -44,10 +44,10 @@ class TextModels(ControllerFrame):
     menu_button: CTkButton
     input: CTkTextbox
     options_frame: CTkFrame
-    chat_space: CTkTextbox
+    chat_space_frame: CTkTextbox
     selected_model_options: CTkOptionMenu
     selected_model_label: CTkLabel
-    chat_space_frame: CTkFrame
+    center_frame: CTkFrame
     send_button: CTkButton
     theme_mode_options: CTkOptionMenu
     theme_mode_label: CTkLabel
@@ -120,17 +120,19 @@ class TextModels(ControllerFrame):
         self.send_button.grid(row=3, column=3, padx=(20, 20), pady=(20, 20), sticky="nsew")
 
         # Create chat space frame
-        self.chat_space_frame = customtkinter.CTkFrame(self.class_container)
-        self.chat_space_frame.grid(row=0, column=1, rowspan=3, columnspan=2, padx=(20, 0), pady=(20, 0), sticky="nsew")
-        self.selected_model_label = customtkinter.CTkLabel(self.chat_space_frame, text="Selected Model:",
+        self.center_frame = customtkinter.CTkFrame(self.class_container)
+        self.center_frame.grid(row=0, column=1, rowspan=3, columnspan=2, padx=(20, 0), pady=(20, 0), sticky="nsew")
+        self.selected_model_label = customtkinter.CTkLabel(self.center_frame, text="Selected Model:",
                                                            anchor="center")
         self.selected_model_label.grid(row=0, column=0, padx=20, pady=(10, 10), sticky='ne')
-        self.selected_model_options = customtkinter.CTkOptionMenu(self.chat_space_frame, values=["gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-4"], command=self.change_model_event)
+        self.selected_model_options = customtkinter.CTkOptionMenu(self.center_frame, values=["gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-4"], command=self.change_model_event)
         self.selected_model_options.grid(row=0, column=1, padx=20, pady=(10, 10), sticky='nw')
-        self.chat_space = customtkinter.CTkTextbox(self.chat_space_frame, wrap="word", font=("New Times Roma", 14))
-        self.chat_space.grid(row=1, rowspan=2, column=0, columnspan=3, padx=(20, 0), pady=(20, 0), sticky="nsew")
-        self.chat_space_frame.grid_rowconfigure(1, weight=1)
-        self.chat_space_frame.grid_columnconfigure(2, weight=1)
+        self.chat_space_frame = customtkinter.CTkFrame(self.center_frame)
+        self.chat_space_frame.grid(row=1, rowspan=2, column=0, columnspan=3, padx=(20, 0), pady=(20, 0), sticky="nsew")
+        self.chat_space_frame.grid_columnconfigure(1, weight=1)
+
+        self.center_frame.grid_rowconfigure(1, weight=1)
+        self.center_frame.grid_columnconfigure(2, weight=1)
 
         # Create options frame:
         self.options_frame = customtkinter.CTkFrame(self.class_container)
@@ -167,7 +169,6 @@ class TextModels(ControllerFrame):
         # Set default values and configure:
         self.new_chat_button.configure(text="New Chat")
         self.theme_mode_options.set(self.theme_mode_pref)
-        self.chat_space.configure(state="disabled")
         self.temperature_sidebar.set(self.temperature_pref)
         self.selected_model_options.set(self.model_pref)
         self.max_tokens_entry.insert(0, self.max_tokens_pref)
@@ -177,6 +178,7 @@ class TextModels(ControllerFrame):
             self.after(1, self.make_window_fullscreen)
         self.input.after(100, self.input.focus_set)
         self.chat_id = None
+        self.current_messanges_count = 0
 
         # Load previous chat to chat history:
         self.load_previous_chats_to_chat_history()
@@ -205,8 +207,8 @@ class TextModels(ControllerFrame):
                 i += 1
 
     def load_other_chat_config_and_chat_story(self, file_name):
-        self.chat_space.configure(state="normal")
-        self.chat_space.delete("1.0", tkinter.END)
+        self.chat_space_frame.children.clear()
+        self.current_messanges_count = 0
 
         with open("chats/" + file_name + ".json", "r") as chat_file:
             chat_data = json.load(chat_file)
@@ -225,9 +227,15 @@ class TextModels(ControllerFrame):
 
             # Load chat messages:
             for message in chat_data["messages"]:
-                self.chat_space.insert(tk.END, (message["content"] + message["answer"]))
+                self.write_new_message(message["content"])
+                self.write_new_message(message["answer"])
 
-        self.chat_space.configure(state="disable")
+
+    def write_new_message(self, message, role=None):
+        self.new_message = customtkinter.CTkTextbox(self.chat_space_frame)
+        self.new_message.grid(row=self.current_messanges_count, column=0, padx=(20, 0), pady=(20, 0), sticky="new")
+        self.new_message.configure(state="disable")
+        self.current_messanges_count += 1
 
     def api_request(self, prompt):
         # Get values:
@@ -236,8 +244,7 @@ class TextModels(ControllerFrame):
         temperature = float(self.temperature_value_label.cget("text"))
 
         # Clear input:
-        self.chat_space.configure(state="normal")
-        self.chat_space.insert(tk.END, prompt)
+        self.write_new_message(prompt)
         self.input.delete("1.0", tkinter.END)
 
         messages = self.load_previous_messages_and_count_its_tokens(prompt)
@@ -254,15 +261,16 @@ class TextModels(ControllerFrame):
 
         # Get response into chat space:
         complete_message = ""
+        self.new_message.configure(state="normal")
         for chunk in chat_completion:
             if chunk and chunk['choices'][0]['delta'] != {}:
                 chunk_message = chunk['choices'][0]['delta']['content']
                 complete_message += chunk_message
-                self.chat_space.insert(tk.END, chunk_message)
-                self.chat_space.see(tk.END)
 
-        self.chat_space.insert(tk.END, "\n\n")
-        self.chat_space.configure(state="disabled")
+                self.new_message.insert(tk.END, chunk_message)
+                self.new_message.see(tk.END)
+
+        self.new_message.configure(state="disable")
         self.save_chat_to_file(prompt, complete_message)
 
     def save_chat_to_file(self, prompt, response):
@@ -354,9 +362,7 @@ class TextModels(ControllerFrame):
     def new_chat_click(self):
         self.chat_id = None
         self.role_textbox.configure(state="normal")
-        self.chat_space.configure(state="normal")
-        self.chat_space.delete("1.0", tkinter.END)
-        self.chat_space.configure(state="disabled")
+        self.chat_space_frame.children.clear()
 
     def on_remember_previous_messages_click(self, event):
         with open("config.json", "r+") as config_file:
