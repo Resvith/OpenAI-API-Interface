@@ -1,3 +1,4 @@
+import time
 import tkinter as tk
 import os
 import openai
@@ -68,6 +69,7 @@ class TextModels(ControllerFrame):
     def __init__(self, master, controller):
         ControllerFrame.__init__(self, master, controller)
         self.master.class_container = None
+        self.messages = []
 
     def create_widgets(self):
         # Create config file if no exists:
@@ -245,11 +247,12 @@ class TextModels(ControllerFrame):
         textbox.configure(height=h, state="disable")
 
     def write_new_message(self, message, role=None):
-        self.new_message = customtkinter.CTkTextbox(self.chat_space_frame, wrap="word")
-        self.new_message.grid(row=self.current_messanges_count, column=0, columnspan=2, pady=(20, 0), sticky="new")
-        self.new_message.grid_columnconfigure(0, weight=1)
-        self.new_message.insert(tk.END, message)
-        self.new_message.bind("<Configure>", lambda event: self.change_height_of_textbox(self.new_message))
+        new_message = customtkinter.CTkTextbox(self.chat_space_frame, wrap="word", height=25)
+        new_message.grid(row=self.current_messanges_count, column=0, columnspan=2, pady=(20, 0), sticky="new")
+        new_message.grid_columnconfigure(0, weight=1)
+        new_message.insert(tk.END, message)
+        new_message.bind("<Configure>", lambda event: self.change_height_of_textbox(new_message))
+        self.messages.append(new_message)
 
         self.current_messanges_count += 1
 
@@ -278,16 +281,16 @@ class TextModels(ControllerFrame):
         # Get response into chat space:
         complete_message = ""
         self.write_new_message("")
-        self.new_message.configure(state="normal")
+        self.messages[-1].configure(state="normal")
         for chunk in chat_completion:
             if chunk and chunk['choices'][0]['delta'] != {}:
                 chunk_message = chunk['choices'][0]['delta']['content']
                 complete_message += chunk_message
 
-                self.new_message.insert(tk.END, chunk_message)
-                self.new_message.see(tk.END)
+                self.messages[-1].insert(tk.END, chunk_message)
+                self.messages[-1].see(tk.END)
 
-        self.new_message.configure(state="disable")
+        self.messages[-1].configure(state="disable")
         self.save_chat_to_file(prompt, complete_message)
 
     def save_chat_to_file(self, prompt, response):
