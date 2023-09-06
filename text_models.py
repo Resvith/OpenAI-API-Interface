@@ -1,4 +1,3 @@
-import time
 import tkinter as tk
 import os
 import openai
@@ -210,6 +209,7 @@ class TextModels(ControllerFrame):
 
     def load_other_chat_config_and_chat_story(self, file_name):
         self.chat_space_frame_clear()
+        self.messages.clear()
         self.current_messanges_count = 0
 
         with open("chats/" + file_name + ".json", "r") as chat_file:
@@ -282,6 +282,7 @@ class TextModels(ControllerFrame):
         complete_message = ""
         self.write_new_message("")
         self.messages[-1].configure(state="normal")
+        self.messages[-1].unbind("<Configure>")
         for chunk in chat_completion:
             if chunk and chunk['choices'][0]['delta'] != {}:
                 chunk_message = chunk['choices'][0]['delta']['content']
@@ -289,7 +290,9 @@ class TextModels(ControllerFrame):
 
                 self.messages[-1].insert(tk.END, chunk_message)
                 self.messages[-1].see(tk.END)
+                self.messages[-1].configure(height=500)
 
+        self.messages[-1].bind("<Configure>", command=self.change_height_of_textbox(self.messages[-1]))
         self.messages[-1].configure(state="disable")
         self.save_chat_to_file(prompt, complete_message)
 
@@ -382,6 +385,7 @@ class TextModels(ControllerFrame):
     def new_chat_click(self):
         print("Debug: New chat clicked")
         self.chat_id = None
+        self.messages.clear()
         self.current_messanges_count = 0
         self.role_textbox.configure(state="normal")
         self.chat_space_frame_clear()
