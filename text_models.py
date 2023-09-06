@@ -7,7 +7,7 @@ import threading
 import json
 import datetime
 import tiktoken
-from customtkinter import CTkFrame, CTkButton, CTkLabel, CTkOptionMenu, CTkTextbox, CTkEntry, CTkSlider, CTkCheckBox
+from customtkinter import CTkFrame, CTkButton, CTkLabel, CTkOptionMenu, CTkTextbox, CTkEntry, CTkSlider, CTkCheckBox, CTkScrollableFrame
 
 from controller_frame import ControllerFrame
 
@@ -44,7 +44,7 @@ class TextModels(ControllerFrame):
     menu_button: CTkButton
     input: CTkTextbox
     options_frame: CTkFrame
-    chat_space_frame: CTkTextbox
+    chat_space_frame: CTkScrollableFrame
     selected_model_options: CTkOptionMenu
     selected_model_label: CTkLabel
     center_frame: CTkFrame
@@ -127,9 +127,9 @@ class TextModels(ControllerFrame):
         self.selected_model_label.grid(row=0, column=0, padx=20, pady=(10, 10), sticky='ne')
         self.selected_model_options = customtkinter.CTkOptionMenu(self.center_frame, values=["gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-4"], command=self.change_model_event)
         self.selected_model_options.grid(row=0, column=1, padx=20, pady=(10, 10), sticky='nw')
-        self.chat_space_frame = customtkinter.CTkFrame(self.center_frame)
-        self.chat_space_frame.grid(row=1, rowspan=2, column=0, columnspan=3, padx=(20, 0), pady=(20, 0), sticky="nsew")
-        self.chat_space_frame.grid_columnconfigure(1, weight=1)
+        self.chat_space_frame = customtkinter.CTkScrollableFrame(self.center_frame)
+        self.chat_space_frame.grid(row=1, rowspan=2, column=0, columnspan=3, sticky="nsew")
+        self.chat_space_frame.grid_columnconfigure(0, weight=10)
 
         self.center_frame.grid_rowconfigure(1, weight=1)
         self.center_frame.grid_columnconfigure(2, weight=1)
@@ -207,7 +207,7 @@ class TextModels(ControllerFrame):
                 i += 1
 
     def load_other_chat_config_and_chat_story(self, file_name):
-        self.chat_space_frame.children.clear()
+        self.chat_space_frame_clear()
         self.current_messanges_count = 0
 
         with open("chats/" + file_name + ".json", "r") as chat_file:
@@ -230,11 +230,27 @@ class TextModels(ControllerFrame):
                 self.write_new_message(message["content"])
                 self.write_new_message(message["answer"])
 
+    @staticmethod
+    def change_height_of_textbox(textbox):
+        font_size = 14
+        font_h = int(font_size * 1.33)
+        textbox_width = textbox.winfo_width()
+        chars_count = len(textbox.get(1.0, tk.END))
+        new_lines_count = textbox.get(1.0, tk.END).count("\n")
+        x = 9
+        calculated_h = int(chars_count * x * font_h // textbox_width)
+        line_h = new_lines_count * 16
+        # Chooses a higher pitch either based on the text or on the number of lines:
+        h = max(calculated_h, line_h)
+        textbox.configure(height=h, state="disable")
 
     def write_new_message(self, message, role=None):
-        self.new_message = customtkinter.CTkTextbox(self.chat_space_frame)
-        self.new_message.grid(row=self.current_messanges_count, column=0, padx=(20, 0), pady=(20, 0), sticky="new")
-        self.new_message.configure(state="disable")
+        self.new_message = customtkinter.CTkTextbox(self.chat_space_frame, wrap="word")
+        self.new_message.grid(row=self.current_messanges_count, column=0, columnspan=2, pady=(20, 0), sticky="new")
+        self.new_message.grid_columnconfigure(0, weight=1)
+        self.new_message.insert(tk.END, message)
+        self.new_message.bind("<Configure>", lambda event: self.change_height_of_textbox(self.new_message))
+
         self.current_messanges_count += 1
 
     def api_request(self, prompt):
@@ -247,7 +263,7 @@ class TextModels(ControllerFrame):
         self.write_new_message(prompt)
         self.input.delete("1.0", tkinter.END)
 
-        messages = self.load_previous_messages_and_count_its_tokens(prompt)
+        messages = self.remember_previous_messages_and_count_its_tokens(prompt)
 
         # Execute prompt:
         openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -261,6 +277,7 @@ class TextModels(ControllerFrame):
 
         # Get response into chat space:
         complete_message = ""
+        self.write_new_message("")
         self.new_message.configure(state="normal")
         for chunk in chat_completion:
             if chunk and chunk['choices'][0]['delta'] != {}:
@@ -321,7 +338,7 @@ class TextModels(ControllerFrame):
 
             write_data_to_json_file(chat_file_data, f"chats/chat_{self.chat_id}.json")
 
-    def load_previous_messages_and_count_its_tokens(self, prompt):
+    def remember_previous_messages_and_count_its_tokens(self, prompt):
         messages = []
         if self.chat_id and self.remember_previous_messages_pref:
             tokens_limit = 1000
@@ -343,7 +360,7 @@ class TextModels(ControllerFrame):
                 # Save counted tokens (prompt and response are counted later):
                 chat_data["parameters"]["tokens_counter"] += tokens_counter
 
-                messages.append({"role": "user", "content": "\n" + prompt})
+                messages.append({"role": "user", "content": prompt})
                 write_data_to_json_file(chat_data, f"chats/chat_{self.chat_id}.json")
 
         else:  # If the conversation hasn't started yet:
@@ -357,12 +374,21 @@ class TextModels(ControllerFrame):
         prompt = self.input.get("1.0", tkinter.END)
         if prompt == "Send a message\n" or not prompt.strip():
             return
-        self.api_request(prompt)
+        self.api_request(prompt.strip())
 
     def new_chat_click(self):
+        print("Debug: New chat clicked")
         self.chat_id = None
+        self.current_messanges_count = 0
         self.role_textbox.configure(state="normal")
-        self.chat_space_frame.children.clear()
+        self.chat_space_frame_clear()
+
+    def chat_space_frame_clear(self):
+        self.chat_space_frame._scrollbar.grid_forget()
+        self.chat_space_frame.destroy()
+        self.chat_space_frame = customtkinter.CTkScrollableFrame(self.center_frame)
+        self.chat_space_frame.grid(row=1, rowspan=2, column=0, columnspan=3, padx=(20, 0), pady=(20, 0), sticky="nsew")
+        self.chat_space_frame.grid_columnconfigure(1, weight=10)
 
     def on_remember_previous_messages_click(self, event):
         with open("config.json", "r+") as config_file:
