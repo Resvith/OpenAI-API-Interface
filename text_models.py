@@ -10,6 +10,7 @@ import tiktoken
 from customtkinter import CTkFrame, CTkButton, CTkLabel, CTkOptionMenu, CTkTextbox, CTkEntry, CTkSlider, CTkCheckBox, CTkScrollableFrame
 
 from controller_frame import ControllerFrame
+from PIL import Image
 
 
 def write_data_to_json_file(data, file_path):
@@ -229,8 +230,8 @@ class TextModels(ControllerFrame):
 
             # Load chat messages:
             for message in chat_data["messages"]:
-                self.write_new_message(message["content"])
-                self.write_new_message(message["answer"])
+                self.write_new_message(message["content"], "user")
+                self.write_new_message(message["answer"], "ai")
 
     @staticmethod
     def change_height_of_textbox(textbox):
@@ -247,9 +248,20 @@ class TextModels(ControllerFrame):
         textbox.configure(height=h, state="disable")
 
     def write_new_message(self, message, role=None):
+        dark_image_path = ""
+        if role == "user":
+            dark_image_path = "img/user_icon_64.png"
+        elif role == "ai":
+            dark_image_path = "img/ai_icon_64.png"
+
+        dark_image = Image.open(dark_image_path)
+        image = customtkinter.CTkImage(dark_image=dark_image, size=(32, 32))
+        icon_in_app = customtkinter.CTkLabel(self.chat_space_frame, image=image, text="")
+        icon_in_app.grid(row=self.current_messanges_count, column=0, padx=(0, 5), pady=(20, 0), sticky="nw")
+
         new_message = customtkinter.CTkTextbox(self.chat_space_frame, wrap="word", height=25)
-        new_message.grid(row=self.current_messanges_count, column=0, columnspan=2, pady=(20, 0), sticky="new")
-        new_message.grid_columnconfigure(0, weight=1)
+        new_message.grid(row=self.current_messanges_count, column=1, columnspan=2, pady=(20, 0), sticky="new")
+        new_message.grid_columnconfigure(1, weight=1)
         new_message.insert(tk.END, message)
         new_message.bind("<Configure>", lambda event: self.change_height_of_textbox(new_message))
         self.messages.append(new_message)
@@ -263,7 +275,7 @@ class TextModels(ControllerFrame):
         temperature = float(self.temperature_value_label.cget("text"))
 
         # Clear input:
-        self.write_new_message(prompt)
+        self.write_new_message(prompt, "user")
         self.input.delete("1.0", tkinter.END)
 
         messages = self.remember_previous_messages_and_count_its_tokens(prompt)
@@ -280,7 +292,7 @@ class TextModels(ControllerFrame):
 
         # Get response into chat space:
         complete_message = ""
-        self.write_new_message("")
+        self.write_new_message("", "ai")
         self.messages[-1].configure(state="normal")
         self.messages[-1].unbind("<Configure>")
         for chunk in chat_completion:
