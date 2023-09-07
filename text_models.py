@@ -187,6 +187,7 @@ class TextModels(ControllerFrame):
 
         # Load previous chat to chat history:
         self.load_previous_chats_to_chat_history()
+        self.chat_space_frame_clear()
 
     def debug(self):
         pass
@@ -360,7 +361,7 @@ class TextModels(ControllerFrame):
                 self.messages[-1].configure(height=500)
 
         self.messages[-1].bind("<Configure>", command=self.change_height_of_textbox(self.messages[-1]))
-        self.after(100, self.highlight_code(self.messages[-1]))
+        self.highlight_code(self.messages[-1])
         self.messages[-1].configure(state="disable")
         self.save_chat_to_file(prompt, complete_message)
 
