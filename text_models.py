@@ -7,10 +7,13 @@ import threading
 import json
 import datetime
 import tiktoken
+import re
 from customtkinter import CTkFrame, CTkButton, CTkLabel, CTkOptionMenu, CTkTextbox, CTkEntry, CTkSlider, CTkCheckBox, CTkScrollableFrame
 
 from controller_frame import ControllerFrame
 from PIL import Image
+from pygments.lexers import get_lexer_by_name
+from pygments import lex, styles
 
 
 def write_data_to_json_file(data, file_path):
@@ -123,7 +126,7 @@ class TextModels(ControllerFrame):
 
         # Create chat space frame
         self.center_frame = customtkinter.CTkFrame(self.class_container)
-        self.center_frame.grid(row=0, column=1, rowspan=3, columnspan=2, padx=(20, 0), pady=(20, 0), sticky="nsew")
+        self.center_frame.grid(row=0, column=1, rowspan=3, columnspan=2, pady=(20, 0), sticky="nsew")
         self.selected_model_label = customtkinter.CTkLabel(self.center_frame, text="Selected Model:",
                                                            anchor="center")
         self.selected_model_label.grid(row=0, column=0, padx=20, pady=(10, 10), sticky='ne')
@@ -247,6 +250,57 @@ class TextModels(ControllerFrame):
         h = max(calculated_h, line_h)
         textbox.configure(height=h, state="disable")
 
+    @staticmethod
+    def find_code_to_highlight(textbox):
+        matches = []
+        language = ""
+        text = textbox.get("1.0", tk.END).splitlines()
+        pattern = "```"
+        for i, line in enumerate(text):
+            for match in re.finditer(pattern, line):
+                matches.append((f"{i + 1}.{match.start()}", f"{i + 1}.{match.end()}"))
+
+        if matches:
+            lang_end = matches[0][0].split(".")[0] + ".end"
+            language = textbox.get(matches[0][1], lang_end)
+
+        if language == "":
+            language = "git"
+
+        return matches, language
+
+    def highlight_code(self, textbox):
+        def colorize_syntax():
+            # Load style and formatter:
+            textbox.mark_set(matches[0][0], "1.0")
+            range_start = matches[0][1]
+            range_end = matches[1][0]
+            textbox.mark_set("range_start", range_start)
+            text = textbox.get(range_start, range_end)
+            selected_style = styles.get_style_by_name("github-dark")     # Get specific style
+            style_items = selected_style.styles.items()
+            text_color_style = []
+            for key, value in style_items:
+                if value is not None:
+                    pattern = r"(?:bold|no|border|italic|underline|bg)\s*|:#[a-fA-F0-9]+\s*"
+                    result = re.sub(pattern, '', value)
+                    text_color_style.append((key, result.strip()))
+
+            # Configure for tags:
+            for key, value in text_color_style:
+                textbox.tag_config(str(key), foreground=str(value))
+
+            # Add tags to specific tokens:
+            for token, content in lex(text, get_lexer_by_name(language)):
+                textbox.mark_set("range_end", "range_start + %dc" % len(content))
+                textbox.tag_add(str(token), "range_start", "range_end")
+                textbox.mark_set("range_start", "range_end")
+
+        # Find code to highlight and highlight it:
+        matches, language = self.find_code_to_highlight(textbox)
+        if matches:
+            colorize_syntax()
+
     def write_new_message(self, message, role=None):
         dark_image_path = ""
         if role == "user":
@@ -264,6 +318,7 @@ class TextModels(ControllerFrame):
         new_message.grid_columnconfigure(1, weight=1)
         new_message.insert(tk.END, message)
         new_message.bind("<Configure>", lambda event: self.change_height_of_textbox(new_message))
+        self.highlight_code(new_message)
         self.messages.append(new_message)
 
         self.current_messanges_count += 1
@@ -305,6 +360,7 @@ class TextModels(ControllerFrame):
                 self.messages[-1].configure(height=500)
 
         self.messages[-1].bind("<Configure>", command=self.change_height_of_textbox(self.messages[-1]))
+        self.after(100, self.highlight_code(self.messages[-1]))
         self.messages[-1].configure(state="disable")
         self.save_chat_to_file(prompt, complete_message)
 
