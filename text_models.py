@@ -287,11 +287,11 @@ class TextModels(ControllerFrame):
         return matches, language
 
     def highlight_code(self, textbox):
-        def colorize_syntax():
+        def colorize_syntax(first_match_pair, second_match_pair):
             # Load style and formatter:
-            textbox.mark_set(matches[0][0], "1.0")
-            range_start = matches[0][1]
-            range_end = matches[1][0]
+            textbox.mark_set(first_match_pair[0], "1.0")
+            range_start = first_match_pair[1]
+            range_end = second_match_pair[0]
             textbox.mark_set("range_start", range_start)
             text = textbox.get(range_start, range_end)
             selected_style = styles.get_style_by_name("github-dark")     # Get specific style
@@ -314,26 +314,28 @@ class TextModels(ControllerFrame):
                 textbox.mark_set("range_start", "range_end")
 
             # Cleaning:
-            textbox.mark_unset(matches[0][0])
+            textbox.mark_unset(first_match_pair[0])
             textbox.mark_unset("range_start")
 
-        def create_window_for_code():
+        def create_window_for_code(first_match_pair, second_match_pair):
             # Black background:
             textbox.tag_config("code_background", background="#000000", lmargin1=15)
-            textbox.tag_add("code_background", matches[0][1], str(float(matches[1][0])+1.0))
-            textbox.tag_add("code_background", matches[0][1], matches[1][0])
+            textbox.tag_add("code_background", first_match_pair[1], str(float(second_match_pair[0])+1.0))
+            textbox.tag_add("code_background", first_match_pair[1], second_match_pair[0])
             # Title:
             textbox.tag_config("code_title", background="#2C3032", foreground="#F5F5F5", spacing1=5, spacing3=5)
-            textbox.tag_add("code_title", matches[0][0], str(float(matches[0][0])+1.0))
+            textbox.tag_add("code_title", first_match_pair[0], str(float(first_match_pair[0])+1.0))
             # ``` tag delete:
-            textbox.delete(matches[0][0], matches[0][1])
-            textbox.delete(matches[1][0], matches[1][1])
+            textbox.delete(first_match_pair[0], first_match_pair[1])
+            textbox.delete(second_match_pair[0], second_match_pair[1])
 
         # Find code to highlight and highlight it:
         matches, language = self.find_code_to_highlight(textbox)
-        if matches:
-            colorize_syntax()
-            create_window_for_code()
+        for i in range(0, len(matches), 2):
+            if not matches[i + 1]:
+                break
+            colorize_syntax(matches[i], matches[i + 1])
+            create_window_for_code(matches[i], matches[i + 1])
 
     def write_new_message(self, message, role=None):
         dark_image_path = ""
