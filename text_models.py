@@ -134,7 +134,6 @@ class TextModels(ControllerFrame):
         self.selected_model_options.grid(row=0, column=1, padx=20, pady=(10, 10), sticky='nw')
         self.chat_space_frame = customtkinter.CTkScrollableFrame(self.center_frame)
         self.chat_space_frame.grid(row=1, rowspan=2, column=0, columnspan=3, sticky="nsew")
-        self.chat_space_frame.grid_columnconfigure(0, weight=10)
 
         self.center_frame.grid_rowconfigure(1, weight=1)
         self.center_frame.grid_columnconfigure(2, weight=1)
@@ -184,6 +183,9 @@ class TextModels(ControllerFrame):
         self.input.after(100, self.input.focus_set)
         self.chat_id = None
         self.current_messanges_count = 0
+
+        # Bind events:
+        self.controller.bind("<Configure>", self.make_window_responsive)
 
         # Load previous chat to chat history:
         self.load_previous_chats_to_chat_history()
@@ -236,6 +238,20 @@ class TextModels(ControllerFrame):
             for message in chat_data["messages"]:
                 self.write_new_message(message["content"], "user")
                 self.write_new_message(message["answer"], "ai")
+
+    def make_window_responsive(self, event):
+        width = self.master.winfo_width()
+        if not self.chat_space_frame.children:
+            return
+        if width < 1300:
+            self.chat_space_frame.grid_columnconfigure(0, weight=0)
+            self.chat_space_frame.grid_columnconfigure(2, weight=0)
+        elif width < 1700:
+            self.chat_space_frame.grid_columnconfigure(0, weight=2)
+            self.chat_space_frame.grid_columnconfigure(2, weight=2)
+        else:
+            self.chat_space_frame.grid_columnconfigure(0, weight=5)
+            self.chat_space_frame.grid_columnconfigure(2, weight=5)
 
     @staticmethod
     def change_height_of_textbox(textbox):
@@ -312,11 +328,11 @@ class TextModels(ControllerFrame):
         dark_image = Image.open(dark_image_path)
         image = customtkinter.CTkImage(dark_image=dark_image, size=(32, 32))
         icon_in_app = customtkinter.CTkLabel(self.chat_space_frame, image=image, text="")
-        icon_in_app.grid(row=self.current_messanges_count, column=0, padx=(0, 5), pady=(20, 0), sticky="nw")
+        icon_in_app.grid(row=self.current_messanges_count, column=0, padx=(0, 5), pady=(20, 0), sticky="ne")
 
         new_message = customtkinter.CTkTextbox(self.chat_space_frame, wrap="word", height=25)
-        new_message.grid(row=self.current_messanges_count, column=1, columnspan=2, pady=(20, 0), sticky="new")
-        new_message.grid_columnconfigure(1, weight=1)
+        new_message.grid(row=self.current_messanges_count, column=1, pady=(20, 0), sticky="new")
+        self.chat_space_frame.grid_columnconfigure(1, weight=10)
         new_message.insert(tk.END, message)
         new_message.bind("<Configure>", lambda event: self.change_height_of_textbox(new_message))
         self.highlight_code(new_message)
