@@ -337,7 +337,7 @@ class TextModels(ControllerFrame):
             colorize_syntax(matches[i], matches[i + 1])
             create_window_for_code(matches[i], matches[i + 1])
 
-    def write_new_message(self, message, role=None):
+    def add_icon_to_message(self, role):
         dark_image_path = ""
         if role == "user":
             dark_image_path = "img/user_icon_64.png"
@@ -349,6 +349,8 @@ class TextModels(ControllerFrame):
         icon_in_app = customtkinter.CTkLabel(self.chat_space_frame, image=image, text="")
         icon_in_app.grid(row=self.current_messanges_count, column=0, padx=(0, 5), pady=(20, 0), sticky="ne")
 
+    def write_new_message(self, message, role):
+        self.add_icon_to_message(role)
         new_message = customtkinter.CTkTextbox(self.chat_space_frame, wrap="word", height=25)
         new_message.grid(row=self.current_messanges_count, column=1, pady=(20, 0), sticky="new")
         self.chat_space_frame.grid_columnconfigure(1, weight=10)
