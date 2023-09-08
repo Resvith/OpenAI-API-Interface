@@ -282,7 +282,7 @@ class TextModels(ControllerFrame):
             language = textbox.get(matches[0][1], lang_end)
 
         if language == "":
-            language = "git"
+            language = "shell"
 
         return matches, language
 
@@ -313,10 +313,27 @@ class TextModels(ControllerFrame):
                 textbox.tag_add(str(token), "range_start", "range_end")
                 textbox.mark_set("range_start", "range_end")
 
+            # Cleaning:
+            textbox.mark_unset(matches[0][0])
+            textbox.mark_unset("range_start")
+
+        def create_window_for_code():
+            # Black background:
+            textbox.tag_config("code_background", background="#000000", lmargin1=15)
+            textbox.tag_add("code_background", matches[0][1], str(float(matches[1][0])+1.0))
+            textbox.tag_add("code_background", matches[0][1], matches[1][0])
+            # Title:
+            textbox.tag_config("code_title", background="#2C3032", foreground="#F5F5F5", spacing1=5, spacing3=5)
+            textbox.tag_add("code_title", matches[0][0], str(float(matches[0][0])+1.0))
+            # ``` tag delete:
+            textbox.delete(matches[0][0], matches[0][1])
+            textbox.delete(matches[1][0], matches[1][1])
+
         # Find code to highlight and highlight it:
         matches, language = self.find_code_to_highlight(textbox)
         if matches:
             colorize_syntax()
+            create_window_for_code()
 
     def write_new_message(self, message, role=None):
         dark_image_path = ""
