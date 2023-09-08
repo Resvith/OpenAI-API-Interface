@@ -337,6 +337,11 @@ class TextModels(ControllerFrame):
             colorize_syntax(matches[i], matches[i + 1])
             create_window_for_code(matches[i], matches[i + 1])
 
+    def change_style_of_message(self, textbox):
+        textbox.tag_config("all_space_of_chat", spacing2=6)
+        textbox.tag_add("all_space_of_chat", "1.0", tk.END)
+        self.highlight_code(textbox)
+
     def add_icon_to_message(self, role):
         dark_image_path = ""
         if role == "user":
@@ -356,7 +361,7 @@ class TextModels(ControllerFrame):
         self.chat_space_frame.grid_columnconfigure(1, weight=10)
         new_message.insert(tk.END, message)
         new_message.bind("<Configure>", lambda event: self.change_height_of_textbox(new_message))
-        self.highlight_code(new_message)
+        self.change_style_of_message(new_message)
         self.messages.append(new_message)
 
         self.current_messanges_count += 1
