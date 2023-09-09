@@ -182,7 +182,8 @@ class TextModels(ControllerFrame):
             self.after(1, self.make_window_fullscreen)
         self.input.after(100, self.input.focus_set)
         self.chat_id = None
-        self.current_messanges_count = 0
+        self.current_messages_count = 0
+        self.is_scrolled_up = False
 
         # Bind events:
         self.controller.bind("<Configure>", self.make_window_responsive)
@@ -217,7 +218,7 @@ class TextModels(ControllerFrame):
     def load_other_chat_config_and_chat_story(self, file_name):
         self.chat_space_frame_clear()
         self.messages.clear()
-        self.current_messanges_count = 0
+        self.current_messages_count = 0
 
         with open("chats/" + file_name + ".json", "r") as chat_file:
             chat_data = json.load(chat_file)
@@ -251,6 +252,7 @@ class TextModels(ControllerFrame):
         while not self.is_scrollbar_exist(message):
             h += 25
             message.configure(height=h)
+            self.move_scrollbar_to_bottom()
 
     def change_height_of_message_in_real_time(self, message):
         h = message.winfo_height()
@@ -362,18 +364,19 @@ class TextModels(ControllerFrame):
         dark_image = Image.open(dark_image_path)
         image = customtkinter.CTkImage(dark_image=dark_image, size=(32, 32))
         icon_in_app = customtkinter.CTkLabel(self.chat_space_frame, image=image, text="")
-        icon_in_app.grid(row=self.current_messanges_count, column=0, padx=(0, 5), pady=(20, 0), sticky="ne")
+        icon_in_app.grid(row=self.current_messages_count, column=0, padx=(0, 5), pady=(20, 0), sticky="ne")
 
     def write_new_message(self, message, role):
         self.add_icon_to_message(role)
         new_message = customtkinter.CTkTextbox(self.chat_space_frame, font=("New Times Roman", 15), wrap="word", height=35)
-        new_message.grid(row=self.current_messanges_count, column=1, pady=(20, 0), sticky="new")
+        new_message.grid(row=self.current_messages_count, column=1, pady=(20, 0), sticky="new")
         self.chat_space_frame.grid_columnconfigure(1, weight=10)
         new_message.insert(tk.END, message)
         self.change_style_of_message(new_message)
+        new_message.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_up_in_textbox(event))
         self.messages.append(new_message)
 
-        self.current_messanges_count += 1
+        self.current_messages_count += 1
 
     def api_request(self, prompt):
         # Get values:
@@ -384,6 +387,7 @@ class TextModels(ControllerFrame):
         # Clear input:
         self.write_new_message(prompt, "user")
         self.input.delete("1.0", tkinter.END)
+        self.move_scrollbar_to_bottom()
 
         messages = self.remember_previous_messages_and_count_its_tokens(prompt)
 
@@ -408,8 +412,8 @@ class TextModels(ControllerFrame):
                 complete_message += chunk_message
 
                 self.messages[-1].insert(tk.END, chunk_message)
-                self.messages[-1].see(tk.END)
                 self.change_height_of_message_in_real_time(self.messages[-1])
+                self.move_scrollbar_to_bottom()
 
         self.highlight_code(self.messages[-1])
         self.messages[-1].configure(state="disable")
@@ -494,6 +498,21 @@ class TextModels(ControllerFrame):
 
         return messages
 
+    def on_mouse_scroll_up(self, event):
+        if event.delta > 0:
+            self.is_scrolled_up = True
+        elif self.chat_space_frame._scrollbar._end_value >= 0.975:
+            self.is_scrolled_up = False
+
+    def move_scrollbar_to_bottom(self):
+        if self.is_scrolled_up:
+            return
+        self.chat_space_frame._scrollbar._command("moveto", 1.0)
+
+    def on_mouse_scroll_up_in_textbox(self, event):
+        if event.delta > 0:
+            self.is_scrolled_up = True
+
     def check_correct_input(self):
         # Check if input is empty:
         prompt = self.input.get("1.0", tkinter.END)
@@ -505,7 +524,7 @@ class TextModels(ControllerFrame):
         print("Debug: New chat clicked")
         self.chat_id = None
         self.messages.clear()
-        self.current_messanges_count = 0
+        self.current_messages_count = 0
         self.role_textbox.configure(state="normal")
         self.chat_space_frame_clear()
 
@@ -515,6 +534,7 @@ class TextModels(ControllerFrame):
         self.chat_space_frame = customtkinter.CTkScrollableFrame(self.center_frame)
         self.chat_space_frame.grid(row=1, rowspan=2, column=0, columnspan=3, padx=(20, 0), pady=(20, 0), sticky="nsew")
         self.chat_space_frame.grid_columnconfigure(1, weight=10)
+        self.chat_space_frame.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_up(event))
 
     def on_remember_previous_messages_click(self, event):
         with open("config.json", "r+") as config_file:
