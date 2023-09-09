@@ -239,6 +239,24 @@ class TextModels(ControllerFrame):
                 self.write_new_message(message["content"], "user")
                 self.write_new_message(message["answer"], "ai")
 
+            self.update_idletasks()
+            self.after(10, threading.Thread(target=self.change_height_of_messages).start())
+
+    def change_height_of_messages(self):
+        for i in range(len(self.messages) - 1, -1, -1):
+            self.change_height_of_message(self.messages[i])
+
+    def change_height_of_message(self, message):
+        h = message.winfo_height()
+        while not self.is_scrollbar_exist(message):
+            h += 25
+            message.configure(height=h)
+
+    @staticmethod
+    def is_scrollbar_exist(message):
+        message._y_scrollbar.update()
+        return message._hide_y_scrollbar
+
     def make_window_responsive(self, event):
         width = self.master.winfo_width()
         if not self.chat_space_frame.children:
@@ -252,20 +270,6 @@ class TextModels(ControllerFrame):
         else:
             self.chat_space_frame.grid_columnconfigure(0, weight=5)
             self.chat_space_frame.grid_columnconfigure(2, weight=5)
-
-    @staticmethod
-    def change_height_of_textbox(textbox):
-        font_size = 14
-        font_h = int(font_size * 1.33)
-        textbox_width = textbox.winfo_width()
-        chars_count = len(textbox.get(1.0, tk.END))
-        new_lines_count = textbox.get(1.0, tk.END).count("\n")
-        x = 9
-        calculated_h = int(chars_count * x * font_h // textbox_width)
-        line_h = new_lines_count * 16
-        # Chooses a higher pitch either based on the text or on the number of lines:
-        h = max(calculated_h, line_h)
-        textbox.configure(height=h, state="disable")
 
     @staticmethod
     def find_code_to_highlight(textbox):
@@ -356,11 +360,10 @@ class TextModels(ControllerFrame):
 
     def write_new_message(self, message, role):
         self.add_icon_to_message(role)
-        new_message = customtkinter.CTkTextbox(self.chat_space_frame, wrap="word", height=25)
+        new_message = customtkinter.CTkTextbox(self.chat_space_frame, font=("New Times Roman", 15), wrap="word", height=35)
         new_message.grid(row=self.current_messanges_count, column=1, pady=(20, 0), sticky="new")
         self.chat_space_frame.grid_columnconfigure(1, weight=10)
         new_message.insert(tk.END, message)
-        new_message.bind("<Configure>", lambda event: self.change_height_of_textbox(new_message))
         self.change_style_of_message(new_message)
         self.messages.append(new_message)
 
@@ -402,7 +405,6 @@ class TextModels(ControllerFrame):
                 self.messages[-1].see(tk.END)
                 self.messages[-1].configure(height=500)
 
-        self.messages[-1].bind("<Configure>", command=self.change_height_of_textbox(self.messages[-1]))
         self.highlight_code(self.messages[-1])
         self.messages[-1].configure(state="disable")
         self.save_chat_to_file(prompt, complete_message)
