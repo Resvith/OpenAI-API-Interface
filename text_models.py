@@ -252,6 +252,12 @@ class TextModels(ControllerFrame):
             h += 25
             message.configure(height=h)
 
+    def change_height_of_message_in_real_time(self, message):
+        h = message.winfo_height()
+        while not message._hide_y_scrollbar:
+            h += 25
+            message.configure(height=h)
+
     @staticmethod
     def is_scrollbar_exist(message):
         message._y_scrollbar.update()
@@ -403,7 +409,7 @@ class TextModels(ControllerFrame):
 
                 self.messages[-1].insert(tk.END, chunk_message)
                 self.messages[-1].see(tk.END)
-                self.messages[-1].configure(height=500)
+                self.change_height_of_message_in_real_time(self.messages[-1])
 
         self.highlight_code(self.messages[-1])
         self.messages[-1].configure(state="disable")
