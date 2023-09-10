@@ -243,8 +243,8 @@ class TextModels(ControllerFrame):
 
             # Load chat messages:
             for message in chat_data["messages"]:
-                self.write_new_message(message["content"], "user")
-                self.write_new_message(message["answer"], "ai")
+                self.write_new_message(message["input"]["content"], "user")
+                self.write_new_message(message["answer"]["content"], "ai")
 
             self.update_idletasks()
             self.after(10, threading.Thread(target=self.change_height_of_messages).start())
@@ -263,7 +263,7 @@ class TextModels(ControllerFrame):
     def change_height_of_message_in_real_time(self, message):
         h = message.winfo_height()
         while not message._hide_y_scrollbar:
-            h += 25
+            h += 10
             message.configure(height=h)
 
     @staticmethod
@@ -422,10 +422,15 @@ class TextModels(ControllerFrame):
                 self.move_scrollbar_to_bottom()
 
         self.highlight_code(self.messages[-1])
-        self.messages[-1].configure(state="disable")
-        self.save_chat_to_file(prompt, complete_message)
+        height_of_response = self.messages[-1].winfo_height()
+        width_of_response = self.messages[-1].winfo_width()
+        height_of_input = self.messages[-2].winfo_height()
+        width_of_input = self.messages[-2].winfo_width()
 
-    def save_chat_to_file(self, prompt, response):
+        self.messages[-1].configure(state="disable")
+        self.save_chat_to_file(prompt, complete_message, height_of_response, width_of_response, height_of_input, width_of_input)
+
+    def save_chat_to_file(self, prompt, response, height_of_response, width_of_response, height_of_input, width_of_input):
         if self.chat_id is None:
             with open("config.json", "r+") as config_file:
                 config_parameters = json.load(config_file)
@@ -461,8 +466,16 @@ class TextModels(ControllerFrame):
         with open(f"chats/chat_{self.chat_id}.json", "r+") as chat_file:
             chat_file_data = json.load(chat_file)
             message = {
-                "content": prompt,
-                "answer": response
+                "input": {
+                    "content": prompt,
+                    "height": height_of_input,
+                    "width": width_of_input,
+                },
+                "answer": {
+                    "content": response,
+                    "height": height_of_response,
+                    "width": width_of_response,
+                }
             }
             chat_file_data["messages"].append(message)
             chat_file_data["parameters"]["messages_counter"] += 1
@@ -484,11 +497,11 @@ class TextModels(ControllerFrame):
                 messages.append({"role": "system", "content": chat_data["parameters"]["role"]})
                 tokens_counter += self.count_tokens_for_text(chat_data["parameters"]["role"])
                 for i in range(len(chat_data["messages"]) - 1, -1, -1):
-                    tokens_counter += self.count_tokens_for_text(chat_data["messages"][i]["content"])
-                    tokens_counter += self.count_tokens_for_text(chat_data["messages"][i]["answer"])
+                    tokens_counter += self.count_tokens_for_text(chat_data["messages"][i]["input"]["content"])
+                    tokens_counter += self.count_tokens_for_text(chat_data["messages"][i]["answer"]["content"])
                     if tokens_limit > tokens_counter:
-                        messages.append({"role": "user", "content": chat_data["messages"][i]["content"]})
-                        messages.append({"role": "system", "content": chat_data["messages"][i]["answer"]})
+                        messages.append({"role": "user", "content": chat_data["messages"][i]["input"]["content"]})
+                        messages.append({"role": "system", "content": chat_data["messages"][i]["answer"]["content"]})
                     else:
                         break
 
