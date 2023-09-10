@@ -243,11 +243,19 @@ class TextModels(ControllerFrame):
 
             # Load chat messages:
             for message in chat_data["messages"]:
-                self.write_new_message(message["input"]["content"], "user")
-                self.write_new_message(message["answer"]["content"], "ai")
+                calculated_height_of_input = self.calculate_height_of_message(message["input"]["height"], message["width_of_window"])
+                calculated_height_of_answer = self.calculate_height_of_message(message["answer"]["height"], message["width_of_window"])
+                self.write_new_message(message["input"]["content"], "user", calculated_height_of_input)
+                self.write_new_message(message["answer"]["content"], "ai", calculated_height_of_answer)
 
-            self.update_idletasks()
-            self.after(10, threading.Thread(target=self.change_height_of_messages).start())
+            # self.update_idletasks()
+            # self.after(10, threading.Thread(target=self.change_height_of_messages).start())
+
+    def calculate_height_of_message(self, height, width):
+        width_of_current_window = self.winfo_width()
+        width_radio = width_of_current_window / width   # Wrong calculation
+        height_of_message = int(height * width_radio)
+        return height_of_message
 
     def change_height_of_messages(self):
         for i in range(len(self.messages) - 1, -1, -1):
@@ -372,11 +380,12 @@ class TextModels(ControllerFrame):
         icon_in_app = customtkinter.CTkLabel(self.chat_space_frame, image=image, text="")
         icon_in_app.grid(row=self.current_messages_count, column=0, padx=(0, 5), pady=(20, 0), sticky="ne")
 
-    def write_new_message(self, message, role):
+    def write_new_message(self, message, role, height_of_message=35):
         self.add_icon_to_message(role)
-        new_message = customtkinter.CTkTextbox(self.chat_space_frame, font=("New Times Roman", 15), wrap="word", height=35)
+        new_message = customtkinter.CTkTextbox(self.chat_space_frame, font=("New Times Roman", 15), wrap="word", height=height_of_message)
         new_message.grid(row=self.current_messages_count, column=1, pady=(20, 0), sticky="new")
         self.chat_space_frame.grid_columnconfigure(1, weight=10)
+        new_message.tag_config("all_space_of_chat", spacing2=6)
         new_message.insert(tk.END, message)
         self.change_style_of_message(new_message)
         new_message.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_up_in_textbox(event))
@@ -417,20 +426,22 @@ class TextModels(ControllerFrame):
                 chunk_message = chunk['choices'][0]['delta']['content']
                 complete_message += chunk_message
 
-                self.messages[-1].insert(tk.END, chunk_message)
+                self.messages[-1].insert(tk.END, chunk_message, "all_space_of_chat")
                 self.change_height_of_message_in_real_time(self.messages[-1])
                 self.move_scrollbar_to_bottom()
 
         self.highlight_code(self.messages[-1])
         height_of_response = self.messages[-1].winfo_height()
-        width_of_response = self.messages[-1].winfo_width()
         height_of_input = self.messages[-2].winfo_height()
-        width_of_input = self.messages[-2].winfo_width()
+        width_of_window = self.winfo_width()
 
         self.messages[-1].configure(state="disable")
-        self.save_chat_to_file(prompt, complete_message, height_of_response, width_of_response, height_of_input, width_of_input)
+        self.messages[-1].update_idletasks()
+        self.messages[-2].update_idletasks()
 
-    def save_chat_to_file(self, prompt, response, height_of_response, width_of_response, height_of_input, width_of_input):
+        self.save_chat_to_file(prompt, complete_message, height_of_response, height_of_input, width_of_window)
+
+    def save_chat_to_file(self, prompt, response, height_of_response, height_of_input, width_of_window):
         if self.chat_id is None:
             with open("config.json", "r+") as config_file:
                 config_parameters = json.load(config_file)
@@ -469,13 +480,12 @@ class TextModels(ControllerFrame):
                 "input": {
                     "content": prompt,
                     "height": height_of_input,
-                    "width": width_of_input,
                 },
                 "answer": {
                     "content": response,
                     "height": height_of_response,
-                    "width": width_of_response,
-                }
+                },
+                "width_of_window": width_of_window
             }
             chat_file_data["messages"].append(message)
             chat_file_data["parameters"]["messages_counter"] += 1
