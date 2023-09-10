@@ -58,7 +58,7 @@ class App(customtkinter.CTk):
 
     def enter_clicked(self, event, class_name):
         available_in = ["TextModels", "ImageModelsCreate", "ImageModelsEdit"]  # List of frames where event is available
-        if not (event.state and 0x1) and class_name in available_in:           # If not pressed shift and name in ^
+        if event.state == 32 and class_name in available_in:                   # If not pressed shift and name in ^
             frame = self.frames[class_name]
             frame.on_send_button_click()
 

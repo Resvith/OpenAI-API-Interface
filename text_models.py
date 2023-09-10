@@ -186,7 +186,7 @@ class TextModels(ControllerFrame):
             self.after(1, self.make_window_fullscreen)
         self.input.after(100, self.input.focus_set)
         self.chat_id = None
-        self.current_messages_count = 0
+        self.current_messages_count = 1     # 1 because, 0 is invisible textbox
         self.is_scrolled_up = False
         self.max_chats = 30
 
@@ -224,7 +224,7 @@ class TextModels(ControllerFrame):
     def load_other_chat_config_and_chat_story(self, file_name):
         self.chat_space_frame_clear()
         self.messages.clear()
-        self.current_messages_count = 0
+        self.current_messages_count = 1
 
         with open("chats/" + file_name + ".json", "r") as chat_file:
             chat_data = json.load(chat_file)
@@ -243,41 +243,25 @@ class TextModels(ControllerFrame):
 
             # Load chat messages:
             for message in chat_data["messages"]:
-                calculated_height_of_input = self.calculate_height_of_message(message["input"]["height"], message["width_of_window"])
-                calculated_height_of_answer = self.calculate_height_of_message(message["answer"]["height"], message["width_of_window"])
+                calculated_height_of_input = self.calculate_height_of_message(message["input"]["height"], message["input"]["width"])
+                calculated_height_of_answer = self.calculate_height_of_message(message["answer"]["height"], message["input"]["width"])
                 self.write_new_message(message["input"]["content"], "user", calculated_height_of_input)
                 self.write_new_message(message["answer"]["content"], "ai", calculated_height_of_answer)
-
-            # self.update_idletasks()
-            # self.after(10, threading.Thread(target=self.change_height_of_messages).start())
+            self.move_scrollbar_to_bottom()
 
     def calculate_height_of_message(self, height, width):
-        width_of_current_window = self.winfo_width()
-        width_radio = width_of_current_window / width   # Wrong calculation
+        self.chat_space_empty_textbox.update_idletasks()
+        width_of_current_window = self.chat_space_empty_textbox.winfo_width()
+        width_radio = width / width_of_current_window
         height_of_message = int(height * width_radio)
         return height_of_message
 
-    def change_height_of_messages(self):
-        for i in range(len(self.messages) - 1, -1, -1):
-            self.change_height_of_message(self.messages[i])
-
-    def change_height_of_message(self, message):
-        h = message.winfo_height()
-        while not self.is_scrollbar_exist(message):
-            h += 25
-            message.configure(height=h)
-            self.move_scrollbar_to_bottom()
-
-    def change_height_of_message_in_real_time(self, message):
+    @staticmethod
+    def change_height_of_message_in_real_time(message):
         h = message.winfo_height()
         while not message._hide_y_scrollbar:
             h += 10
             message.configure(height=h)
-
-    @staticmethod
-    def is_scrollbar_exist(message):
-        message._y_scrollbar.update()
-        return message._hide_y_scrollbar
 
     def make_window_responsive(self, event):
         width = self.master.winfo_width()
@@ -390,6 +374,7 @@ class TextModels(ControllerFrame):
         self.change_style_of_message(new_message)
         new_message.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_up_in_textbox(event))
         self.messages.append(new_message)
+        new_message.configure(state="disabled")
 
         self.current_messages_count += 1
 
@@ -402,7 +387,7 @@ class TextModels(ControllerFrame):
         # Clear input:
         self.write_new_message(prompt, "user")
         self.input.delete("1.0", tkinter.END)
-        self.move_scrollbar_to_bottom()
+        self.change_style_of_message(self.messages[-1])
 
         messages = self.remember_previous_messages_and_count_its_tokens(prompt)
 
@@ -415,6 +400,9 @@ class TextModels(ControllerFrame):
             stream=True,
             messages=messages
         )
+
+        # Expand input textbox:
+        self.change_height_of_message_in_real_time(self.messages[-1])
 
         # Get response into chat space:
         complete_message = ""
@@ -431,17 +419,26 @@ class TextModels(ControllerFrame):
                 self.move_scrollbar_to_bottom()
 
         self.highlight_code(self.messages[-1])
-        height_of_response = self.messages[-1].winfo_height()
-        height_of_input = self.messages[-2].winfo_height()
-        width_of_window = self.winfo_width()
-
         self.messages[-1].configure(state="disable")
-        self.messages[-1].update_idletasks()
-        self.messages[-2].update_idletasks()
 
-        self.save_chat_to_file(prompt, complete_message, height_of_response, height_of_input, width_of_window)
+        height_of_input = self.messages[-2].winfo_height()
+        self.increase_height_of_textbox(self.messages[-2], height_of_input)
+        height_of_response = self.messages[-1].winfo_height()
+        self.increase_height_of_textbox(self.messages[-1], height_of_response)
 
-    def save_chat_to_file(self, prompt, response, height_of_response, height_of_input, width_of_window):
+        self.save_chat_to_file(prompt, complete_message, height_of_response, height_of_input)
+
+    @staticmethod
+    def increase_height_of_textbox(textbox, height):
+        if height < 40:
+            return
+        elif height < 100:
+            height += 20
+        else:
+            height += 50
+        textbox.configure(height=height)
+
+    def save_chat_to_file(self, prompt, response, height_of_response, height_of_input):
         if self.chat_id is None:
             with open("config.json", "r+") as config_file:
                 config_parameters = json.load(config_file)
@@ -479,13 +476,14 @@ class TextModels(ControllerFrame):
             message = {
                 "input": {
                     "content": prompt,
-                    "height": height_of_input,
+                    "height": height_of_input + int(height_of_input * 0.1),
+                    "width": self.chat_space_empty_textbox.winfo_width(),
                 },
                 "answer": {
                     "content": response,
-                    "height": height_of_response,
+                    "height": height_of_response + int(height_of_response * 0.1),
+                    "width": self.chat_space_empty_textbox.winfo_width(),
                 },
-                "width_of_window": width_of_window
             }
             chat_file_data["messages"].append(message)
             chat_file_data["parameters"]["messages_counter"] += 1
@@ -577,7 +575,7 @@ class TextModels(ControllerFrame):
         print("Debug: New chat clicked")
         self.chat_id = None
         self.messages.clear()
-        self.current_messages_count = 0
+        self.current_messages_count = 1
         self.role_textbox.configure(state="normal")
         self.chat_space_frame_clear()
 
@@ -588,6 +586,9 @@ class TextModels(ControllerFrame):
         self.chat_space_frame.grid(row=1, rowspan=2, column=0, columnspan=3, padx=(20, 0), pady=(20, 0), sticky="nsew")
         self.chat_space_frame.grid_columnconfigure(1, weight=10)
         self.chat_space_frame.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_up(event))
+        self.chat_space_empty_textbox = customtkinter.CTkTextbox(self.chat_space_frame, height=1, fg_color="transparent")
+        self.chat_space_empty_textbox.grid(row=0, column=1, sticky="nsew")
+        self.chat_space_empty_textbox.configure(state="disabled")
 
     def on_remember_previous_messages_click(self, event):
         with open("config.json", "r+") as config_file:
@@ -616,12 +617,6 @@ class TextModels(ControllerFrame):
 
     def make_window_fullscreen(self):
         self.controller.state('zoomed')
-
-    def enter_clicked(self, event):
-        print("Debug: Enter clicked")
-        if not (event.state and 0x1):  # Check if Shift key is not pressed
-            print("Debug: Prompt send")
-            threading.Thread(target=self.check_correct_input).start()
 
     def on_menu_button_click(self):
         self.controller.show_frame("Menu")
