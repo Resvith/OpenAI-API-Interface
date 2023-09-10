@@ -55,19 +55,19 @@ class TextModels(ControllerFrame):
     send_button: CTkButton
     theme_mode_options: CTkOptionMenu
     theme_mode_label: CTkLabel
-    chat_history_frame: CTkFrame
+    chat_history_frame: CTkScrollableFrame
     new_chat_button: CTkButton
-    remember_previous_messages_pref: object
-    fullscreened_pref: object
-    window_height_pref: object
-    window_width_pref: object
-    theme_mode_pref: object
-    temperature_pref: object
-    max_tokens_pref: object
-    model_pref: object
+    remember_previous_messages_pref: int
+    fullscreened_pref: bool
+    window_height_pref: int
+    window_width_pref: int
+    theme_mode_pref: str
+    temperature_pref: float
+    max_tokens_pref: int
+    model_pref: str
     left_chats_bar: CTkFrame
     class_container: CTkFrame
-    chat_count: object
+    chat_count: int
 
     def __init__(self, master, controller):
         ControllerFrame.__init__(self, master, controller)
@@ -96,8 +96,11 @@ class TextModels(ControllerFrame):
         self.class_container = customtkinter.CTkFrame(self, corner_radius=0)
         self.class_container.grid(row=0, column=0, sticky="nsew")
         self.class_container.grid_columnconfigure(1, weight=1)
-        self.class_container.grid_columnconfigure((2, 3), weight=0)
-        self.class_container.grid_rowconfigure((0, 1, 2), weight=1)
+        self.class_container.grid_columnconfigure(2, weight=0)
+        self.class_container.grid_columnconfigure(3, weight=0)
+        self.class_container.grid_rowconfigure(0, weight=1)
+        self.class_container.grid_rowconfigure(1, weight=1)
+        self.class_container.grid_rowconfigure(2, weight=1)
 
         # Create left bar frame for chat history and new chat button:
         self.left_chats_bar = customtkinter.CTkFrame(self.class_container, width=140, corner_radius=0)
@@ -105,8 +108,9 @@ class TextModels(ControllerFrame):
         self.left_chats_bar.grid_rowconfigure(1, weight=1)
         self.new_chat_button = customtkinter.CTkButton(self.left_chats_bar, command=self.new_chat_click)
         self.new_chat_button.grid(row=0, column=0)
-        self.chat_history_frame = customtkinter.CTkFrame(self.left_chats_bar, corner_radius=0)
+        self.chat_history_frame = customtkinter.CTkScrollableFrame(self.left_chats_bar, corner_radius=0)
         self.chat_history_frame.grid(row=1, column=0, padx=20, pady=(20, 0), sticky="nsew")
+        self.chat_history_frame.grid_columnconfigure(0, weight=1)
         self.theme_mode_label = customtkinter.CTkLabel(self.left_chats_bar, text="Appearance Mode:")
         self.theme_mode_label.grid(row=2, column=0, padx=20, pady=(10, 0))
         self.theme_mode_options = customtkinter.CTkOptionMenu(self.left_chats_bar, values=["Light", "Dark", "System"],
@@ -184,9 +188,11 @@ class TextModels(ControllerFrame):
         self.chat_id = None
         self.current_messages_count = 0
         self.is_scrolled_up = False
+        self.max_chats = 30
 
         # Bind events:
         self.controller.bind("<Configure>", self.make_window_responsive)
+        self.chat_history_frame.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
 
         # Load previous chat to chat history:
         self.load_previous_chats_to_chat_history()
@@ -203,15 +209,15 @@ class TextModels(ControllerFrame):
     def load_previous_chats_to_chat_history(self):
         if os.path.exists("chats"):
             chats_list = os.listdir("chats")
-            sorted_chat_list = sorted(chats_list, key=lambda x: os.path.getmtime(os.path.join("chats", x)), reverse=True)
-            max_chats = 30
+            self.sorted_chat_list = sorted(chats_list, key=lambda x: os.path.getmtime(os.path.join("chats", x)), reverse=True)
             i = 0
 
-            while len(sorted_chat_list) > i < max_chats:
-                button_name = sorted_chat_list[i]
+            while len(self.sorted_chat_list) > i < self.max_chats:
+                button_name = self.sorted_chat_list[i]
                 button_name = button_name.replace(".json", "")
                 button = customtkinter.CTkButton(self.chat_history_frame, text=button_name, anchor="center", font=("New Times Roma", 12), fg_color="transparent")
                 button.bind("<Button-1>", lambda event, bn=button_name: self.load_other_chat_config_and_chat_story(bn))
+                button.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
                 button.grid(row=i, column=0, pady=1, sticky="we")
                 i += 1
 
@@ -512,6 +518,30 @@ class TextModels(ControllerFrame):
     def on_mouse_scroll_up_in_textbox(self, event):
         if event.delta > 0:
             self.is_scrolled_up = True
+
+    def load_more_chats_to_chat_history(self):
+        # Don't forget previously loaded chats
+        number_of_chats = len(self.sorted_chat_list)
+        now_is_loaded_chats = min(number_of_chats, self.max_chats)
+        if number_of_chats <= self.max_chats:
+            return
+        self.max_chats += 3
+        if self.max_chats > number_of_chats:
+            self.max_chats = number_of_chats
+
+        # Load more chats:
+        for i in range(now_is_loaded_chats, self.max_chats):
+            button_name = self.sorted_chat_list[i]
+            button_name = button_name.replace(".json", "")
+            button = customtkinter.CTkButton(self.chat_history_frame, text=button_name, anchor="center",
+                                             font=("New Times Roma", 12), fg_color="transparent")
+            button.bind("<Button-1>", lambda event, bn=button_name: self.load_other_chat_config_and_chat_story(bn))
+            button.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
+            button.grid(row=i, column=0, pady=1, sticky="we")
+
+    def on_mouse_scroll_in_chat_history(self, event):
+        if event.delta < 0 and self.chat_history_frame._scrollbar._end_value >= 0.975:
+            self.load_more_chats_to_chat_history()
 
     def check_correct_input(self):
         # Check if input is empty:
