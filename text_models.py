@@ -251,8 +251,8 @@ class TextModels(ControllerFrame):
                 message = chat_data["messages"][i]
                 calculated_height_of_input = self.calculate_height_of_message(message["input"]["height"], message["input"]["width"])
                 calculated_height_of_answer = self.calculate_height_of_message(message["answer"]["height"], message["input"]["width"])
-                self.write_new_message(message["input"]["content"], "user", calculated_height_of_input, False)
                 self.write_new_message(message["answer"]["content"], "ai", calculated_height_of_answer, False)
+                self.write_new_message(message["input"]["content"], "user", calculated_height_of_input, False)
                 i -= 1
             self.move_scrollbar_to_bottom()
 
@@ -568,8 +568,8 @@ class TextModels(ControllerFrame):
                                                                               message["input"]["width"])
                 calculated_height_of_answer = self.calculate_height_of_message(message["answer"]["height"],
                                                                                message["input"]["width"])
-                self.write_new_message(message["input"]["content"], "user", calculated_height_of_input, False)
                 self.write_new_message(message["answer"]["content"], "ai", calculated_height_of_answer, False)
+                self.write_new_message(message["input"]["content"], "user", calculated_height_of_input, False)
                 i -= 1
                 j += 1
 
