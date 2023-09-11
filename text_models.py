@@ -226,6 +226,7 @@ class TextModels(ControllerFrame):
         self.chat_space_frame_clear()
         self.messages.clear()
         self.current_messages_count = 0
+        self.current_file_name = file_name
 
         with open("chats/" + file_name + ".json", "r") as chat_file:
             chat_data = json.load(chat_file)
@@ -555,7 +556,22 @@ class TextModels(ControllerFrame):
                 self.load_more_chats_messages()
 
     def load_more_chats_messages(self):
-        pass
+        with open("chats/" + self.current_file_name + ".json", "r") as chat_file:
+            chat_data = json.load(chat_file)
+
+            # Actually message:
+            i = (self.number_of_messages - self.loaded_messages) // 2 - 1
+            j = 0
+            while 0 <= i <= self.number_of_messages and j < 2:
+                message = chat_data["messages"][i]
+                calculated_height_of_input = self.calculate_height_of_message(message["input"]["height"],
+                                                                              message["input"]["width"])
+                calculated_height_of_answer = self.calculate_height_of_message(message["answer"]["height"],
+                                                                               message["input"]["width"])
+                self.write_new_message(message["input"]["content"], "user", calculated_height_of_input, False)
+                self.write_new_message(message["answer"]["content"], "ai", calculated_height_of_answer, False)
+                i -= 1
+                j += 1
 
     def load_more_chats_to_chat_history(self):
         # Don't forget previously loaded chats
