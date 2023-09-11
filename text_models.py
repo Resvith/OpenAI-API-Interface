@@ -245,14 +245,14 @@ class TextModels(ControllerFrame):
 
             # Load chat messages:
             self.loaded_messages = 0
-            i = 0
+            i = self.number_of_messages // 2 - 1
             while self.number_of_messages > self.loaded_messages < 10:
                 message = chat_data["messages"][i]
                 calculated_height_of_input = self.calculate_height_of_message(message["input"]["height"], message["input"]["width"])
                 calculated_height_of_answer = self.calculate_height_of_message(message["answer"]["height"], message["input"]["width"])
                 self.write_new_message(message["input"]["content"], "user", calculated_height_of_input, False)
                 self.write_new_message(message["answer"]["content"], "ai", calculated_height_of_answer, False)
-                i += 1
+                i -= 1
             self.move_scrollbar_to_bottom()
 
     def calculate_height_of_message(self, height, width):
