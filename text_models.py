@@ -68,6 +68,7 @@ class TextModels(ControllerFrame):
     left_chats_bar: CTkFrame
     class_container: CTkFrame
     chat_count: int
+    number_of_messages: int
 
     def __init__(self, master, controller):
         ControllerFrame.__init__(self, master, controller)
@@ -186,7 +187,7 @@ class TextModels(ControllerFrame):
             self.after(1, self.make_window_fullscreen)
         self.input.after(100, self.input.focus_set)
         self.chat_id = None
-        self.current_messages_count = 1     # 1 because, 0 is invisible textbox
+        self.current_messages_count = 0     # 1 because, 0 is invisible textbox
         self.is_scrolled_up = False
         self.max_chats = 30
 
@@ -224,13 +225,14 @@ class TextModels(ControllerFrame):
     def load_other_chat_config_and_chat_story(self, file_name):
         self.chat_space_frame_clear()
         self.messages.clear()
-        self.current_messages_count = 1
+        self.current_messages_count = 0
 
         with open("chats/" + file_name + ".json", "r") as chat_file:
             chat_data = json.load(chat_file)
 
             # Load chat previous data:
             self.chat_id = chat_data["parameters"]["chat_id"]
+            self.number_of_messages = chat_data["parameters"]["messages_counter"]
             self.max_tokens_entry.delete(0, tkinter.END)
             self.max_tokens_entry.insert(0, chat_data["parameters"]["max_tokens"])
             self.temperature_sidebar.set(float(chat_data["parameters"]["temperature"]))
@@ -242,11 +244,13 @@ class TextModels(ControllerFrame):
             self.role_textbox.configure(state="disabled")
 
             # Load chat messages:
-            for message in chat_data["messages"]:
+            self.loaded_messages = 0
+            while self.number_of_messages > self.loaded_messages < 10:
+                message = chat_data["messages"][self.loaded_messages]
                 calculated_height_of_input = self.calculate_height_of_message(message["input"]["height"], message["input"]["width"])
                 calculated_height_of_answer = self.calculate_height_of_message(message["answer"]["height"], message["input"]["width"])
-                self.write_new_message(message["input"]["content"], "user", calculated_height_of_input)
-                self.write_new_message(message["answer"]["content"], "ai", calculated_height_of_answer)
+                self.write_new_message(message["input"]["content"], "user", calculated_height_of_input, False)
+                self.write_new_message(message["answer"]["content"], "ai", calculated_height_of_answer, False)
             self.move_scrollbar_to_bottom()
 
     def calculate_height_of_message(self, height, width):
@@ -352,7 +356,7 @@ class TextModels(ControllerFrame):
         textbox.tag_add("all_space_of_chat", "1.0", tk.END)
         self.highlight_code(textbox)
 
-    def add_icon_to_message(self, role):
+    def add_icon_to_message(self, role, row):
         dark_image_path = ""
         if role == "user":
             dark_image_path = "img/user_icon_64.png"
@@ -362,12 +366,18 @@ class TextModels(ControllerFrame):
         dark_image = Image.open(dark_image_path)
         image = customtkinter.CTkImage(dark_image=dark_image, size=(32, 32))
         icon_in_app = customtkinter.CTkLabel(self.chat_space_frame, image=image, text="")
-        icon_in_app.grid(row=self.current_messages_count, column=0, padx=(0, 5), pady=(20, 0), sticky="ne")
+        icon_in_app.grid(row=row, column=0, padx=(0, 5), pady=(20, 0), sticky="ne")
 
-    def write_new_message(self, message, role, height_of_message=35):
-        self.add_icon_to_message(role)
+    def write_new_message(self, message, role, height_of_message=35, is_new_message=True):
+        if is_new_message:
+            row = self.number_of_messages + self.current_messages_count
+            self.current_messages_count += 1
+        else:
+            row = self.number_of_messages - self.loaded_messages
+            self.loaded_messages += 1
+        self.add_icon_to_message(role, row)
         new_message = customtkinter.CTkTextbox(self.chat_space_frame, font=("New Times Roman", 15), wrap="word", height=height_of_message)
-        new_message.grid(row=self.current_messages_count, column=1, pady=(20, 0), sticky="new")
+        new_message.grid(row=row, column=1, pady=(20, 0), sticky="new")
         self.chat_space_frame.grid_columnconfigure(1, weight=10)
         new_message.tag_config("all_space_of_chat", spacing2=6)
         new_message.insert(tk.END, message)
@@ -376,7 +386,6 @@ class TextModels(ControllerFrame):
         self.messages.append(new_message)
         new_message.configure(state="disabled")
 
-        self.current_messages_count += 1
 
     def api_request(self, prompt):
         # Get values:
@@ -486,7 +495,7 @@ class TextModels(ControllerFrame):
                 },
             }
             chat_file_data["messages"].append(message)
-            chat_file_data["parameters"]["messages_counter"] += 1
+            chat_file_data["parameters"]["messages_counter"] += 2
 
             # Count tokens for prompt and response:
             tokens_consumed = self.count_tokens_for_text(prompt + response)
@@ -528,6 +537,8 @@ class TextModels(ControllerFrame):
     def on_mouse_scroll_up(self, event):
         if event.delta > 0:
             self.is_scrolled_up = True
+            if self.chat_space_frame._scrollbar._start_value <= 0.025:
+                self.load_more_chats_messages()
         elif self.chat_space_frame._scrollbar._end_value >= 0.975:
             self.is_scrolled_up = False
 
@@ -539,6 +550,11 @@ class TextModels(ControllerFrame):
     def on_mouse_scroll_up_in_textbox(self, event):
         if event.delta > 0:
             self.is_scrolled_up = True
+            if self.chat_space_frame._scrollbar._start_value <= 0.025:
+                self.load_more_chats_messages()
+
+    def load_more_chats_messages(self):
+        pass
 
     def load_more_chats_to_chat_history(self):
         # Don't forget previously loaded chats
@@ -575,7 +591,8 @@ class TextModels(ControllerFrame):
         print("Debug: New chat clicked")
         self.chat_id = None
         self.messages.clear()
-        self.current_messages_count = 1
+        self.current_messages_count = 0
+        self.number_of_messages = 0
         self.role_textbox.configure(state="normal")
         self.chat_space_frame_clear()
 
