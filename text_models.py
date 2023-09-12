@@ -74,6 +74,7 @@ class TextModels(ControllerFrame):
         ControllerFrame.__init__(self, master, controller)
         self.master.class_container = None
         self.messages = []
+        self.current_button_selected = None
 
     def create_widgets(self):
         # Create config file if no exists:
@@ -211,20 +212,30 @@ class TextModels(ControllerFrame):
         if os.path.exists("chats"):
             chats_list = os.listdir("chats")
             self.sorted_chat_list = sorted(chats_list, key=lambda x: os.path.getmtime(os.path.join("chats", x)), reverse=True)
-            i = 0
+            row = 0
 
-            while len(self.sorted_chat_list) > i < self.max_chats:
-                button_name = self.sorted_chat_list[i]
+            while len(self.sorted_chat_list) > row < self.max_chats:
+                button_name = self.sorted_chat_list[row]
                 button_name = button_name.replace(".json", "")
                 button = customtkinter.CTkButton(self.chat_history_frame, text=button_name, anchor="center", font=("New Times Roma", 12), fg_color="transparent")
-                button.bind("<Button-1>", lambda event, bn=button_name: self.load_other_chat_config_and_chat_story(bn))
+                button.bind("<Button-1>", lambda event, bn=button_name, button_instance=button: self.load_other_chat_config_and_chat_story(bn, button_instance))
                 button.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
-                button.grid(row=i, column=0, pady=1, sticky="we")
-                i += 1
+                button.grid(row=row, column=0, pady=1, sticky="we")
+                row += 1
 
-    def load_other_chat_config_and_chat_story(self, file_name):
+    def button_highlight_on_click(self, button):
+        button.configure(fg_color="#3F3F3F", text_color="white")
+
+    def button_clear_highlight(self, button):
+        button.configure(fg_color="#2B2B2B", text_color="white")
+
+    def load_other_chat_config_and_chat_story(self, file_name, button):
         self.chat_space_frame_clear()
         self.messages.clear()
+        if self.current_button_selected is not None:
+            self.button_clear_highlight(self.current_button_selected)
+        self.current_button_selected = button
+        self.button_highlight_on_click(button)
         self.current_messages_count = 0
         self.current_file_name = file_name
 
@@ -612,6 +623,8 @@ class TextModels(ControllerFrame):
         self.number_of_messages = 0
         self.role_textbox.configure(state="normal")
         self.chat_space_frame_clear()
+        if self.current_button_selected is not None:
+            self.button_clear_highlight(self.current_button_selected)
 
     def chat_space_frame_clear(self):
         self.chat_space_frame._scrollbar.grid_forget()
