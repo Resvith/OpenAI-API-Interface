@@ -209,6 +209,14 @@ class TextModels(ControllerFrame):
         for model in model_list.data:
             print(model.id)
 
+    @staticmethod
+    def frame_highlight_on_hover(button_frame):
+        button_frame.configure(fg_color="#2F2F2F")
+
+    @staticmethod
+    def frame_clear_highlight(button_frame):
+        button_frame.configure(fg_color="transparent")
+
     def load_previous_chats_to_chat_history(self):
         if os.path.exists("chats"):
             chats_list = os.listdir("chats")
@@ -224,10 +232,12 @@ class TextModels(ControllerFrame):
                 button_frame.grid_columnconfigure(1, weight=0)
                 button_frame.grid_columnconfigure(2, weight=0)
 
-                button_chat = customtkinter.CTkButton(button_frame, text=button_name, font=("New Times Roma", 12), fg_color="transparent", anchor="w")
+                button_chat = customtkinter.CTkButton(button_frame, text=button_name, font=("New Times Roma", 12), fg_color="transparent", anchor="w", hover=False, cursor="hand2")
                 button_chat.grid(row=0, column=0, padx=(8, 0), sticky="nsew")
                 button_chat.bind("<Button-1>", lambda event, bn=button_name, bf=button_frame: self.load_other_chat_config_and_chat_story(bn, bf))
                 button_chat.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
+                button_chat.bind("<Enter>", lambda _, bf=button_frame: self.frame_highlight_on_hover(bf))
+                button_chat.bind("<Leave>", lambda _, bf=button_frame: self.frame_clear_highlight(bf))
                 row += 1
 
     def load_other_chat_config_and_chat_story(self, file_name, button_frame):
@@ -604,10 +614,12 @@ class TextModels(ControllerFrame):
             button_frame.grid_columnconfigure(0, weight=1)
             button_name = self.sorted_chat_list[i]
             button_name = button_name.replace(".json", "")
-            button_chat = customtkinter.CTkButton(button_frame, text=button_name, font=("New Times Roma", 12), fg_color="transparent", anchor="w")
+            button_chat = customtkinter.CTkButton(button_frame, text=button_name, font=("New Times Roma", 12), fg_color="transparent", anchor="w", cursor="hand2")
             button_chat.grid(row=0, column=0, padx=(8, 0), sticky="nsew")
             button_chat.bind("<Button-1>", lambda _, bn=button_name, bf=button_frame: self.load_other_chat_config_and_chat_story(bn, bf))
             button_chat.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
+            button_chat.bind("<Enter>", lambda _, bf=button_frame: self.frame_highlight_on_hover(bf))
+            button_chat.bind("<Leave>", lambda _, bf=button_frame: self.frame_clear_highlight(bf))
 
     @staticmethod
     def set_image_for_button(button, image_path, size=(18, 18)):
@@ -618,22 +630,29 @@ class TextModels(ControllerFrame):
     @staticmethod
     def button_highlight_on_click(button_frame):
         button_frame.configure(fg_color="#3F3F3F")
+        buttons = list(button_frame.children.keys())
+        button_chat = buttons[1]
+        button_frame.children[button_chat].unbind("<Enter>")
+        button_frame.children[button_chat].unbind("<Leave>")
 
-    @staticmethod
-    def button_clear_highlight(button_frame):
+    def button_clear_highlight(self, button_frame):
         button_frame.configure(fg_color="#2B2B2B")
+        buttons = list(button_frame.children.keys())
+        button_chat = buttons[1]
+        button_frame.children[button_chat].bind("<Enter>", lambda _, bf=button_frame: self.frame_highlight_on_hover(bf))
+        button_frame.children[button_chat].bind("<Leave>", lambda _, bf=button_frame: self.frame_clear_highlight(bf))
 
     def add_edit_and_delete_to_button(self, button_frame):
         edit_icon_open = Image.open("img/edit_icon.png")
         edit_icon = customtkinter.CTkImage(edit_icon_open, size=(18, 18))
-        button_edit = customtkinter.CTkButton(button_frame, fg_color="transparent", hover=False, image=edit_icon, text="", width=18, height=18)
+        button_edit = customtkinter.CTkButton(button_frame, fg_color="transparent", hover=False, image=edit_icon, text="", width=18, height=18, cursor="hand2")
         button_edit.grid(row=0, column=1, sticky="e")
         button_edit.bind("<Enter>", lambda _, button=button_edit: self.set_image_for_button(button, "img/edit_icon_on_hover.png"))
         button_edit.bind("<Leave>", lambda _, button=button_edit: self.set_image_for_button(button, "img/edit_icon.png"))
 
         delete_icon_open = Image.open("img/delete_icon.png")
         delete_icon = customtkinter.CTkImage(delete_icon_open, size=(18, 18))
-        button_delete = customtkinter.CTkButton(button_frame, fg_color="transparent", hover=False, image=delete_icon, text="", width=18, height=18)
+        button_delete = customtkinter.CTkButton(button_frame, fg_color="transparent", hover=False, image=delete_icon, text="", width=18, height=18, cursor="hand2")
         button_delete.grid(row=0, column=2, sticky="e")
         button_delete.bind("<Enter>", lambda _, button=button_delete: self.set_image_for_button(button, "img/delete_icon_on_hover.png"))
         button_delete.bind("<Leave>", lambda _, button=button_delete: self.set_image_for_button(button, "img/delete_icon.png"))
