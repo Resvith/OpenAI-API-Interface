@@ -75,6 +75,7 @@ class TextModels(ControllerFrame):
         self.master.class_container = None
         self.messages = []
         self.current_button_selected = None
+        self.number_of_messages = 0
 
     def create_widgets(self):
         # Create config file if no exists:
@@ -277,7 +278,7 @@ class TextModels(ControllerFrame):
     @staticmethod
     def change_height_of_message_in_real_time(message):
         h = message.winfo_height()
-        while not message._hide_y_scrollbar:
+        while message._textbox.yview() != (0.0, 1.0):
             h += 10
             message.configure(height=h)
 
@@ -368,6 +369,7 @@ class TextModels(ControllerFrame):
     def change_style_of_message(self, textbox):
         textbox.tag_config("all_space_of_chat", spacing2=6)
         textbox.tag_add("all_space_of_chat", "1.0", tk.END)
+        textbox.configure(padx=10)
         self.highlight_code(textbox)
 
     def add_icon_to_message(self, role, row):
@@ -390,10 +392,9 @@ class TextModels(ControllerFrame):
             row = self.number_of_messages - self.loaded_messages
             self.loaded_messages += 1
         self.add_icon_to_message(role, row)
-        new_message = customtkinter.CTkTextbox(self.chat_space_frame, font=("New Times Roman", 15), wrap="word", height=height_of_message)
+        new_message = customtkinter.CTkTextbox(self.chat_space_frame, font=("New Times Roman", 15), wrap="word", height=height_of_message, activate_scrollbars=False)
         new_message.grid(row=row, column=1, pady=(20, 0), sticky="new")
         self.chat_space_frame.grid_columnconfigure(1, weight=10)
-        new_message.tag_config("all_space_of_chat", spacing2=6)
         new_message.insert(tk.END, message)
         self.change_style_of_message(new_message)
         new_message.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_up_in_textbox(event))
