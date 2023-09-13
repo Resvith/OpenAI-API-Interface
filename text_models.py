@@ -74,7 +74,7 @@ class TextModels(ControllerFrame):
         ControllerFrame.__init__(self, master, controller)
         self.master.class_container = None
         self.messages = []
-        self.current_button_selected = None
+        self.current_button_frame_selected = None
         self.number_of_messages = 0
 
     def create_widgets(self):
@@ -137,7 +137,7 @@ class TextModels(ControllerFrame):
         self.selected_model_label = customtkinter.CTkLabel(self.center_frame, text="Selected Model:",
                                                            anchor="center")
         self.selected_model_label.grid(row=0, column=0, padx=20, pady=(10, 10), sticky='ne')
-        self.selected_model_options = customtkinter.CTkOptionMenu(self.center_frame, values=["gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-4"], command=self.change_model_event)
+        self.selected_model_options = customtkinter.CTkOptionMenu(self.center_frame, values=["gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-4", "gpt-4-0314", "gpt-4-0613"], command=self.change_model_event)
         self.selected_model_options.grid(row=0, column=1, padx=20, pady=(10, 10), sticky='nw')
         self.chat_space_frame = customtkinter.CTkScrollableFrame(self.center_frame)
         self.chat_space_frame.grid(row=1, rowspan=2, column=0, columnspan=3, sticky="nsew")
@@ -218,25 +218,27 @@ class TextModels(ControllerFrame):
             while len(self.sorted_chat_list) > row < self.max_chats:
                 button_name = self.sorted_chat_list[row]
                 button_name = button_name.replace(".json", "")
-                button = customtkinter.CTkButton(self.chat_history_frame, text=button_name, anchor="center", font=("New Times Roma", 12), fg_color="transparent")
-                button.bind("<Button-1>", lambda event, bn=button_name, button_instance=button: self.load_other_chat_config_and_chat_story(bn, button_instance))
-                button.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
-                button.grid(row=row, column=0, pady=1, sticky="we")
+                button_frame = customtkinter.CTkFrame(self.chat_history_frame, fg_color="transparent")
+                button_frame.grid(row=row, column=0, pady=1, sticky="we")
+                button_frame.grid_columnconfigure(0, weight=1)
+                button_frame.grid_columnconfigure(1, weight=0)
+                button_frame.grid_columnconfigure(2, weight=0)
+
+                button_chat = customtkinter.CTkButton(button_frame, text=button_name, font=("New Times Roma", 12), fg_color="transparent", anchor="w")
+                button_chat.grid(row=0, column=0, padx=(8, 0), sticky="nsew")
+                button_chat.bind("<Button-1>", lambda event, bn=button_name, bf=button_frame: self.load_other_chat_config_and_chat_story(bn, bf))
+                button_chat.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
                 row += 1
 
-    def button_highlight_on_click(self, button):
-        button.configure(fg_color="#3F3F3F", text_color="white")
-
-    def button_clear_highlight(self, button):
-        button.configure(fg_color="#2B2B2B", text_color="white")
-
-    def load_other_chat_config_and_chat_story(self, file_name, button):
+    def load_other_chat_config_and_chat_story(self, file_name, button_frame):
         self.chat_space_frame_clear()
         self.messages.clear()
-        if self.current_button_selected is not None:
-            self.button_clear_highlight(self.current_button_selected)
-        self.current_button_selected = button
-        self.button_highlight_on_click(button)
+        if self.current_button_frame_selected is not None:
+            self.button_clear_highlight(self.current_button_frame_selected)
+            self.delete_add_and_delete_from_button(self.current_button_frame_selected)
+        self.current_button_frame_selected = button_frame
+        self.button_highlight_on_click(button_frame)
+        self.add_edit_and_delete_to_button(button_frame)
         self.current_messages_count = 0
         self.current_file_name = file_name
 
@@ -597,13 +599,51 @@ class TextModels(ControllerFrame):
 
         # Load more chats:
         for i in range(now_is_loaded_chats, self.max_chats):
+            button_frame = customtkinter.CTkFrame(self.chat_history_frame, fg_color="transparent")
+            button_frame.grid(row=i, column=0, pady=1, sticky="we")
+            button_frame.grid_columnconfigure(0, weight=1)
             button_name = self.sorted_chat_list[i]
             button_name = button_name.replace(".json", "")
-            button = customtkinter.CTkButton(self.chat_history_frame, text=button_name, anchor="center",
-                                             font=("New Times Roma", 12), fg_color="transparent")
-            button.bind("<Button-1>", lambda event, bn=button_name: self.load_other_chat_config_and_chat_story(bn))
-            button.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
-            button.grid(row=i, column=0, pady=1, sticky="we")
+            button_chat = customtkinter.CTkButton(button_frame, text=button_name, font=("New Times Roma", 12), fg_color="transparent", anchor="w")
+            button_chat.grid(row=0, column=0, padx=(8, 0), sticky="nsew")
+            button_chat.bind("<Button-1>", lambda _, bn=button_name, bf=button_frame: self.load_other_chat_config_and_chat_story(bn, bf))
+            button_chat.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
+
+    @staticmethod
+    def set_image_for_button(button, image_path, size=(18, 18)):
+        image_open = Image.open(image_path)
+        image = customtkinter.CTkImage(image_open, size=size)
+        button.configure(image=image)
+
+    @staticmethod
+    def button_highlight_on_click(button_frame):
+        button_frame.configure(fg_color="#3F3F3F")
+
+    @staticmethod
+    def button_clear_highlight(button_frame):
+        button_frame.configure(fg_color="#2B2B2B")
+
+    def add_edit_and_delete_to_button(self, button_frame):
+        edit_icon_open = Image.open("img/edit_icon.png")
+        edit_icon = customtkinter.CTkImage(edit_icon_open, size=(18, 18))
+        button_edit = customtkinter.CTkButton(button_frame, fg_color="transparent", hover=False, image=edit_icon, text="", width=18, height=18)
+        button_edit.grid(row=0, column=1, sticky="e")
+        button_edit.bind("<Enter>", lambda _, button=button_edit: self.set_image_for_button(button, "img/edit_icon_on_hover.png"))
+        button_edit.bind("<Leave>", lambda _, button=button_edit: self.set_image_for_button(button, "img/edit_icon.png"))
+
+        delete_icon_open = Image.open("img/delete_icon.png")
+        delete_icon = customtkinter.CTkImage(delete_icon_open, size=(18, 18))
+        button_delete = customtkinter.CTkButton(button_frame, fg_color="transparent", hover=False, image=delete_icon, text="", width=18, height=18)
+        button_delete.grid(row=0, column=2, sticky="e")
+        button_delete.bind("<Enter>", lambda _, button=button_delete: self.set_image_for_button(button, "img/delete_icon_on_hover.png"))
+        button_delete.bind("<Leave>", lambda _, button=button_delete: self.set_image_for_button(button, "img/delete_icon.png"))
+
+    @staticmethod
+    def delete_add_and_delete_from_button(button_frame):
+        buttons = button_frame.children.keys()
+        buttons = list(buttons)
+        button_frame.children[buttons[2]].destroy()
+        button_frame.children[buttons[3]].destroy()
 
     def on_mouse_scroll_in_chat_history(self, event):
         if event.delta < 0 and self.chat_history_frame._scrollbar._end_value >= 0.975:
@@ -624,8 +664,10 @@ class TextModels(ControllerFrame):
         self.number_of_messages = 0
         self.role_textbox.configure(state="normal")
         self.chat_space_frame_clear()
-        if self.current_button_selected is not None:
-            self.button_clear_highlight(self.current_button_selected)
+        if self.current_button_frame_selected is not None:
+            self.button_clear_highlight(self.current_button_frame_selected)
+            self.delete_add_and_delete_from_button(self.current_button_frame_selected)
+        self.current_button_frame_selected = None
 
     def chat_space_frame_clear(self):
         self.chat_space_frame._scrollbar.grid_forget()
