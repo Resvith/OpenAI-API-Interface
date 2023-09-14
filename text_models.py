@@ -76,6 +76,7 @@ class TextModels(ControllerFrame):
         self.messages = []
         self.current_button_frame_selected = None
         self.number_of_messages = 0
+        self.current_file_name = None
 
     def create_widgets(self):
         # Create config file if no exists:
@@ -580,6 +581,8 @@ class TextModels(ControllerFrame):
                 self.load_more_chats_messages()
 
     def load_more_chats_messages(self):
+        if self.current_file_name is None:
+            return
         with open("chats/" + self.current_file_name + ".json", "r") as chat_file:
             chat_data = json.load(chat_file)
 
