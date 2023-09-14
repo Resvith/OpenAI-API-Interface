@@ -76,7 +76,7 @@ class TextModels(ControllerFrame):
         self.messages = []
         self.current_button_frame_selected = None
         self.number_of_messages = 0
-        self.current_file_name = None
+        self.current_chat_row = None
 
     def create_widgets(self):
         # Create config file if no exists:
@@ -225,8 +225,9 @@ class TextModels(ControllerFrame):
             row = 0
 
             while len(self.sorted_chat_list) > row < self.max_chats:
-                button_name = self.sorted_chat_list[row]
-                button_name = button_name.replace(".json", "")
+                with open("chats/" + self.sorted_chat_list[row], "r") as chat_file:
+                    chat_data = json.load(chat_file)
+                    button_name = chat_data["parameters"]["chat_title"]
                 button_frame = customtkinter.CTkFrame(self.chat_history_frame, fg_color="transparent")
                 button_frame.grid(row=row, column=0, pady=1, sticky="we")
                 button_frame.grid_columnconfigure(0, weight=1)
@@ -235,13 +236,13 @@ class TextModels(ControllerFrame):
 
                 button_chat = customtkinter.CTkButton(button_frame, text=button_name, font=("New Times Roma", 12), fg_color="transparent", anchor="w", hover=False, cursor="hand2")
                 button_chat.grid(row=0, column=0, padx=(8, 0), sticky="nsew")
-                button_chat.bind("<Button-1>", lambda event, bn=button_name, bf=button_frame: self.load_other_chat_config_and_chat_story(bn, bf))
+                button_chat.bind("<Button-1>", lambda event, br=row, bf=button_frame: self.load_other_chat_config_and_chat_story(br, bf))
                 button_chat.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
                 button_chat.bind("<Enter>", lambda _, bf=button_frame: self.frame_highlight_on_hover(bf))
                 button_chat.bind("<Leave>", lambda _, bf=button_frame: self.frame_clear_highlight(bf))
                 row += 1
 
-    def load_other_chat_config_and_chat_story(self, file_name, button_frame):
+    def load_other_chat_config_and_chat_story(self, button_row, button_frame):
         self.chat_space_frame_clear()
         self.messages.clear()
         if self.current_button_frame_selected is not None:
@@ -251,9 +252,9 @@ class TextModels(ControllerFrame):
         self.button_highlight_on_click(button_frame)
         self.add_edit_and_delete_to_button(button_frame)
         self.current_messages_count = 0
-        self.current_file_name = file_name
+        self.current_chat_row = button_row
 
-        with open("chats/" + file_name + ".json", "r") as chat_file:
+        with open("chats/" + self.sorted_chat_list[button_row], "r") as chat_file:
             chat_data = json.load(chat_file)
 
             # Load chat previous data:
@@ -439,6 +440,9 @@ class TextModels(ControllerFrame):
 
         # Expand input textbox:
         self.change_height_of_message_in_real_time(self.messages[-1])
+        title = ""
+        if self.chat_id is None:
+            title = self.return_title(prompt)
 
         # Get response into chat space:
         complete_message = ""
@@ -462,7 +466,7 @@ class TextModels(ControllerFrame):
         height_of_response = self.messages[-1].winfo_height()
         self.increase_height_of_textbox(self.messages[-1], height_of_response)
 
-        self.save_chat_to_file(prompt, complete_message, height_of_response, height_of_input)
+        self.save_chat_to_file(prompt, complete_message, height_of_response, height_of_input, title)
 
     @staticmethod
     def increase_height_of_textbox(textbox, height):
@@ -474,7 +478,7 @@ class TextModels(ControllerFrame):
             height += 50
         textbox.configure(height=height)
 
-    def save_chat_to_file(self, prompt, response, height_of_response, height_of_input):
+    def save_chat_to_file(self, prompt, response, height_of_response, height_of_input, title):
         if self.chat_id is None:
             with open("config.json", "r+") as config_file:
                 config_parameters = json.load(config_file)
@@ -491,6 +495,7 @@ class TextModels(ControllerFrame):
                 chat_file_data = {
                     "parameters": {
                         "chat_id": self.chat_id,
+                        "chat_title": title,
                         "model": self.selected_model_options.get(),
                         "max_tokens": self.max_tokens_entry.get(),
                         "temperature": self.temperature_value_label.cget("text"),
@@ -545,7 +550,7 @@ class TextModels(ControllerFrame):
                     tokens_counter += self.count_tokens_for_text(chat_data["messages"][i]["answer"]["content"])
                     if tokens_limit > tokens_counter:
                         messages.append({"role": "user", "content": chat_data["messages"][i]["input"]["content"]})
-                        messages.append({"role": "system", "content": chat_data["messages"][i]["answer"]["content"]})
+                        messages.append({"role": "assistant", "content": chat_data["messages"][i]["answer"]["content"]})
                     else:
                         break
 
@@ -581,9 +586,9 @@ class TextModels(ControllerFrame):
                 self.load_more_chats_messages()
 
     def load_more_chats_messages(self):
-        if self.current_file_name is None:
+        if self.current_chat_row is None:
             return
-        with open("chats/" + self.current_file_name + ".json", "r") as chat_file:
+        with open("chats/" + self.sorted_chat_list[self.current_chat_row], "r") as chat_file:
             chat_data = json.load(chat_file)
 
             # Actually message:
@@ -677,6 +682,26 @@ class TextModels(ControllerFrame):
         if prompt == "Send a message\n" or not prompt.strip():
             return
         self.api_request(prompt.strip())
+
+    @staticmethod
+    def return_title(prompt):
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+        message = []
+        role = ("""A text will be provided to you. Based on this text, return a short title. Maximum 40 characters.
+                    Return it in the format without anything else, just pure text.
+                    If you encounter an error return 'New chat'""")
+        message.append({"role": "system", "content": role})
+        message.append({"role": "user", "content": prompt})
+        chat_completion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            temperature=0.6,
+            max_tokens=2000,
+            stream=False,
+            messages=message
+        )
+
+        title = chat_completion["choices"][0].message["content"]
+        return title
 
     def new_chat_click(self):
         print("Debug: New chat clicked")
