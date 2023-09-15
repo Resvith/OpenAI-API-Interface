@@ -1,11 +1,12 @@
-import customtkinter
 import json
 
+import customtkinter
+
 from audio_models import AudioModels
-from text_models import TextModels
-from menu import Menu
 from image_models_create import ImageModelsCreate
 from image_models_edit import ImageModelsEdit
+from menu import Menu
+from text_models import TextModels
 
 customtkinter.set_appearance_mode("Dark")
 customtkinter.set_default_color_theme("blue")

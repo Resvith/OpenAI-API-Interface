@@ -1,16 +1,17 @@
-import tkinter as tk
-import customtkinter
-import os
-import openai
-import threading
-import webbrowser
-import json
 import io
+import json
+import os
+import threading
+import tkinter as tk
 import urllib.request
+import webbrowser
+
+import customtkinter
+import openai
 import requests
+from PIL import Image
 
 from controller_frame import ControllerFrame
-from PIL import Image
 
 
 def write_data_to_json_file(data, file_path):

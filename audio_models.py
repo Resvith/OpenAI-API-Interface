@@ -1,9 +1,9 @@
-import tkinter as tk
-import customtkinter
 import threading
-import openai
-
+import tkinter as tk
 from tkinter import filedialog
+
+import customtkinter
+import openai
 
 from controller_frame import ControllerFrame
 

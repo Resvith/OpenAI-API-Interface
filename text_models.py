@@ -1,19 +1,21 @@
-import tkinter as tk
-import os
-import openai
-import tkinter.messagebox
-import customtkinter
-import threading
-import json
 import datetime
-import tiktoken
+import json
+import os
 import re
-from customtkinter import CTkFrame, CTkButton, CTkLabel, CTkOptionMenu, CTkTextbox, CTkEntry, CTkSlider, CTkCheckBox, CTkScrollableFrame
+import threading
+import tkinter as tk
+import tkinter.messagebox
+
+import customtkinter
+import openai
+import tiktoken
+from PIL import Image
+from customtkinter import CTkFrame, CTkButton, CTkLabel, CTkOptionMenu, CTkTextbox, CTkEntry, CTkSlider, CTkCheckBox, \
+    CTkScrollableFrame
+from pygments import lex, styles
+from pygments.lexers import get_lexer_by_name
 
 from controller_frame import ControllerFrame
-from PIL import Image
-from pygments.lexers import get_lexer_by_name
-from pygments import lex, styles
 
 
 def write_data_to_json_file(data, file_path):

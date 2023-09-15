@@ -1,21 +1,15 @@
-import tkinter as tk
-import customtkinter
-import os
-import openai
-import threading
-import webbrowser
 import json
-import io
-import urllib.request
-import requests
-import cv2 as cv
-import numpy as np
-
+import os
+import tkinter as tk
 from tkinter import filedialog
 
-from controller_frame import ControllerFrame
+import customtkinter
+import cv2 as cv
+import numpy as np
+import openai
 from PIL import Image
 
+from controller_frame import ControllerFrame
 
 file_mask_path = ""
 
