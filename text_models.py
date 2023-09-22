@@ -11,7 +11,7 @@ import openai
 import tiktoken
 from PIL import Image
 from customtkinter import CTkFrame, CTkButton, CTkLabel, CTkOptionMenu, CTkTextbox, CTkEntry, CTkSlider, CTkCheckBox, \
-    CTkScrollableFrame
+    CTkScrollableFrame, CTkImage
 from pygments import lex, styles
 from pygments.lexers import get_lexer_by_name
 
@@ -53,14 +53,13 @@ class TextModels(ControllerFrame):
     chat_space_frame: CTkScrollableFrame
     selected_model_options: CTkOptionMenu
     selected_model_label: CTkLabel
-    center_frame: CTkFrame
     send_button: CTkButton
     theme_mode_options: CTkOptionMenu
     theme_mode_label: CTkLabel
     chat_history_frame: CTkScrollableFrame
     new_chat_button: CTkButton
     remember_previous_messages_pref: int
-    fullscreened_pref: bool
+    full_screened_pref: bool
     window_height_pref: int
     window_width_pref: int
     theme_mode_pref: str
@@ -71,14 +70,21 @@ class TextModels(ControllerFrame):
     class_container: CTkFrame
     chat_count: int
     number_of_messages: int
+    sorted_chat_list: list[str]
+    chat_space_empty_textbox: CTkTextbox
+    center_frame = CTkFrame
 
     def __init__(self, master, controller):
         ControllerFrame.__init__(self, master, controller)
+        self.is_scrolled_up = None
         self.master.class_container = None
-        self.messages = []
         self.current_button_frame_selected = None
+        self.loaded_messages = 0
+        self.current_messages_count = 0
         self.number_of_messages = 0
-        self.current_chat_row = None
+        self.current_chat_row = 0
+        self.max_chats = 30
+        self.messages = []
 
     def create_widgets(self):
         # Create config file if no exists:
@@ -95,11 +101,13 @@ class TextModels(ControllerFrame):
             self.theme_mode_pref = config_data["text_models"]["user_preferences"]["theme"]
             self.window_width_pref = config_data["text_models"]["user_preferences"]["window_width"]
             self.window_height_pref = config_data["text_models"]["user_preferences"]["window_height"]
-            self.fullscreened_pref = config_data["text_models"]["user_preferences"]["full-screened"]
-            self.remember_previous_messages_pref = config_data["text_models"]["user_preferences"]["remember_previous_messages"]
+            self.full_screened_pref = config_data["text_models"]["user_preferences"]["full-screened"]
+            self.remember_previous_messages_pref = (
+                config_data["text_models"]["user_preferences"]["remember_previous_messages"]
+            )
 
         # Configure class container:
-        self.class_container = customtkinter.CTkFrame(self, corner_radius=0)
+        self.class_container = CTkFrame(self, corner_radius=0)
         self.class_container.grid(row=0, column=0, sticky="nsew")
         self.class_container.grid_columnconfigure(1, weight=1)
         self.class_container.grid_columnconfigure(2, weight=0)
@@ -109,75 +117,99 @@ class TextModels(ControllerFrame):
         self.class_container.grid_rowconfigure(2, weight=1)
 
         # Create left bar frame for chat history and new chat button:
-        self.left_chats_bar = customtkinter.CTkFrame(self.class_container, width=140, corner_radius=0)
+        self.left_chats_bar = CTkFrame(self.class_container, width=140, corner_radius=0)
         self.left_chats_bar.grid(row=0, column=0, rowspan=4, sticky="nsew")
         self.left_chats_bar.grid_rowconfigure(1, weight=1)
-        self.new_chat_button = customtkinter.CTkButton(self.left_chats_bar, command=self.new_chat_click)
+
+        self.new_chat_button = CTkButton(self.left_chats_bar, command=self.new_chat_click)
         self.new_chat_button.grid(row=0, column=0)
-        self.chat_history_frame = customtkinter.CTkScrollableFrame(self.left_chats_bar, corner_radius=0)
+
+        self.chat_history_frame = CTkScrollableFrame(self.left_chats_bar, corner_radius=0)
         self.chat_history_frame.grid(row=1, column=0, padx=20, pady=(20, 0), sticky="nsew")
         self.chat_history_frame.grid_columnconfigure(0, weight=1)
-        self.theme_mode_label = customtkinter.CTkLabel(self.left_chats_bar, text="Appearance Mode:")
+
+        self.theme_mode_label = CTkLabel(self.left_chats_bar, text="Appearance Mode:")
         self.theme_mode_label.grid(row=2, column=0, padx=20, pady=(10, 0))
-        self.theme_mode_options = customtkinter.CTkOptionMenu(self.left_chats_bar, values=["Light", "Dark", "System"],
-                                                              command=change_theme_mode)
+        self.theme_mode_options = CTkOptionMenu(self.left_chats_bar,
+                                                values=["Light", "Dark", "System"],
+                                                command=change_theme_mode)
         self.theme_mode_options.grid(row=3, column=0, padx=20, pady=(10, 10), sticky="s")
 
         # Create input and send button:
-        self.input = customtkinter.CTkTextbox(self.class_container, height=60)
+        self.input = CTkTextbox(self.class_container, height=60)
         self.input.grid(row=3, column=1, columnspan=2, padx=(20, 0), pady=(20, 20), sticky="nsew")
-        self.input.bind("<FocusIn>", self.on_input_focus_in)
-        self.input.bind("<FocusOut>", self.on_input_focus_out)
-        self.send_button = customtkinter.CTkButton(master=self.class_container, fg_color="transparent", border_width=2,
-                                                   text_color=("gray10", "#DCE4EE"), text="Send",
-                                                   command=self.on_send_button_click)
-        self.bind("<Return>", lambda event: self.controller.enter_clicked(event, "TextModels"))
+        self.input.bind("<FocusIn>", lambda _: self.on_input_focus_in)
+        self.input.bind("<FocusOut>", lambda _: self.on_input_focus_out)
+
+        self.send_button = CTkButton(master=self.class_container,
+                                     fg_color="transparent",
+                                     border_width=2,
+                                     text_color=("gray10", "#DCE4EE"),
+                                     text="Send",
+                                     command=self.on_send_button_click)
         self.send_button.grid(row=3, column=3, padx=(20, 20), pady=(20, 20), sticky="nsew")
+        self.bind("<Return>", lambda event: self.controller.enter_clicked(event, "TextModels"))
 
         # Create chat space frame
-        self.center_frame = customtkinter.CTkFrame(self.class_container)
+        self.center_frame = CTkFrame(self.class_container)
         self.center_frame.grid(row=0, column=1, rowspan=3, columnspan=2, pady=(20, 0), sticky="nsew")
-        self.selected_model_label = customtkinter.CTkLabel(self.center_frame, text="Selected Model:",
-                                                           anchor="center")
+
+        self.selected_model_label = CTkLabel(self.center_frame,
+                                             text="Selected Model:",
+                                             anchor="center")
         self.selected_model_label.grid(row=0, column=0, padx=20, pady=(10, 10), sticky='ne')
-        self.selected_model_options = customtkinter.CTkOptionMenu(self.center_frame, values=["gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-4", "gpt-4-0314", "gpt-4-0613"], command=self.change_model_event)
+
+        self.selected_model_options = CTkOptionMenu(self.center_frame,
+                                                    values=["gpt-3.5-turbo",
+                                                            "gpt-3.5-turbo-16k",
+                                                            "gpt-4",
+                                                            "gpt-4-0314",
+                                                            "gpt-4-0613"],
+                                                    command=self.change_model_event)
         self.selected_model_options.grid(row=0, column=1, padx=20, pady=(10, 10), sticky='nw')
-        self.chat_space_frame = customtkinter.CTkScrollableFrame(self.center_frame)
+
+        self.chat_space_frame = CTkScrollableFrame(self.center_frame)
         self.chat_space_frame.grid(row=1, rowspan=2, column=0, columnspan=3, sticky="nsew")
 
         self.center_frame.grid_rowconfigure(1, weight=1)
         self.center_frame.grid_columnconfigure(2, weight=1)
 
         # Create options frame:
-        self.options_frame = customtkinter.CTkFrame(self.class_container)
+        self.options_frame = CTkFrame(self.class_container)
         self.options_frame.grid(row=0, rowspan=3, column=3, padx=(20, 20), pady=(20, 0), sticky="nsew")
 
         # Menu button:
-        self.menu_button = customtkinter.CTkButton(self.options_frame, text="Go back to the Menu", font=("New Times Roman", 16), command=self.on_menu_button_click)
+        self.menu_button = CTkButton(self.options_frame,
+                                     text="Go back to the Menu",
+                                     font=("New Times Roman", 16),
+                                     command=self.on_menu_button_click)
         self.menu_button.grid(row=0, column=0, columnspan=3, padx=(10, 10), pady=(10, 10), sticky="nsew")
 
         # Max tokens and temperature:
-        self.max_tokens_label = customtkinter.CTkLabel(self.options_frame, text="Max Tokens:", anchor="center")
+        self.max_tokens_label = CTkLabel(self.options_frame,
+                                         text="Max Tokens:",
+                                         anchor="center")
         self.max_tokens_label.grid(row=1, column=0, padx=(10, 5), pady=10, sticky='ne')
-        self.max_tokens_entry = customtkinter.CTkEntry(self.options_frame)
+
+        self.max_tokens_entry = CTkEntry(self.options_frame)
         self.max_tokens_entry.grid(row=1, column=1, padx=5, pady=10, sticky='nw')
-        self.temperature_label = customtkinter.CTkLabel(self.options_frame, text="Temperature:", anchor="center")
+        self.temperature_label = CTkLabel(self.options_frame, text="Temperature:", anchor="center")
         self.temperature_label.grid(row=2, column=0, padx=(10, 5), pady=10, sticky='ne')
-        self.temperature_sidebar = customtkinter.CTkSlider(self.options_frame, from_=0, to=2)
+        self.temperature_sidebar = CTkSlider(self.options_frame, from_=0, to=2)
         self.temperature_sidebar.grid(row=2, column=1, padx=5, pady=10, sticky='nw')
-        self.temperature_value_label = customtkinter.CTkLabel(self.options_frame, text=str(self.temperature_pref), anchor="center")
+        self.temperature_value_label = CTkLabel(self.options_frame, text=str(self.temperature_pref), anchor="center")
         self.temperature_value_label.grid(row=2, column=2, padx=(10, 5), pady=10, sticky='nw')
-        self.temperature_sidebar.bind("<B1-Motion>", self.temperature_sidebar_event)
+        self.temperature_sidebar.bind("<B1-Motion>", lambda _: self.temperature_sidebar_event)
 
         # Roles:
-        self.role_label = customtkinter.CTkLabel(self.options_frame, text="Roles:", anchor="center")
+        self.role_label = CTkLabel(self.options_frame, text="Roles:", anchor="center")
         self.role_label.grid(row=3, column=0, padx=5, pady=(10, 10), sticky='ne')
-        self.role_textbox = customtkinter.CTkTextbox(self.options_frame)
+        self.role_textbox = CTkTextbox(self.options_frame)
         self.role_textbox.grid(row=3, column=0, columnspan=3, padx=5, pady=(10, 10), sticky='nsew')
-        self.remember_previous_messages = customtkinter.CTkCheckBox(self.options_frame, text="Remember previous messages")
-        self.remember_previous_messages.bind("<Button-1>", self.on_remember_previous_messages_click)
+        self.remember_previous_messages = CTkCheckBox(self.options_frame, text="Remember previous messages")
+        self.remember_previous_messages.bind("<Button-1>", lambda _: self.on_remember_previous_messages_click)
         self.remember_previous_messages.grid(row=4, column=0, columnspan=3, padx=5, pady=(10, 10), sticky='nsew')
-        self.debug_button = customtkinter.CTkButton(self.options_frame, text="Debug", command=self.debug)
+        self.debug_button = CTkButton(self.options_frame, text="Debug", command=self.debug)
         self.debug_button.grid(row=5, column=0, columnspan=3, padx=5, pady=(10, 10), sticky='nsew')
 
         # Set default values and configure:
@@ -188,7 +220,7 @@ class TextModels(ControllerFrame):
         self.max_tokens_entry.insert(0, self.max_tokens_pref)
         if self.remember_previous_messages_pref:
             self.remember_previous_messages.select()
-        if self.fullscreened_pref:
+        if self.full_screened_pref:
             self.after(1, self.make_window_fullscreen)
         self.input.after(100, self.input.focus_set)
         self.chat_id = None
@@ -223,22 +255,33 @@ class TextModels(ControllerFrame):
     def load_previous_chats_to_chat_history(self):
         if os.path.exists("chats"):
             chats_list = os.listdir("chats")
-            self.sorted_chat_list = sorted(chats_list, key=lambda x: os.path.getmtime(os.path.join("chats", x)), reverse=True)
-            row = 0
+            self.sorted_chat_list = sorted(chats_list,
+                                           key=lambda x: os.path.getmtime(os.path.join("chats", x)),
+                                           reverse=True)
 
+            row = 0
             while len(self.sorted_chat_list) > row < self.max_chats:
                 with open("chats/" + self.sorted_chat_list[row], "r") as chat_file:
                     chat_data = json.load(chat_file)
                     button_name = chat_data["parameters"]["chat_title"]
-                button_frame = customtkinter.CTkFrame(self.chat_history_frame, fg_color="transparent")
+                button_frame = CTkFrame(self.chat_history_frame, fg_color="transparent")
                 button_frame.grid(row=row, column=0, pady=1, sticky="we")
                 button_frame.grid_columnconfigure(0, weight=1)
                 button_frame.grid_columnconfigure(1, weight=0)
                 button_frame.grid_columnconfigure(2, weight=0)
 
-                button_chat = customtkinter.CTkButton(button_frame, text=button_name, font=("New Times Roma", 12), fg_color="transparent", anchor="w", hover=False, cursor="hand2")
-                button_chat.grid(row=0, column=0, padx=(8, 0), sticky="nsew")
-                button_chat.bind("<Button-1>", lambda event, br=row, bf=button_frame: self.load_other_chat_config_and_chat_story(br, bf))
+                button_chat = CTkButton(button_frame,
+                                        text=button_name,
+                                        font=("New Times Roma", 12),
+                                        fg_color="transparent",
+                                        anchor="w",
+                                        hover=False,
+                                        cursor="hand2",
+                                        border_spacing=0,
+                                        border_width=0)
+                button_chat.grid(row=0, column=0, padx=(8, 0), sticky="w")
+                button_chat.bind("<Button-1>",
+                                 lambda _, br=row, bf=button_frame: self.load_other_chat_config_and_chat_story(br, bf))
                 button_chat.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
                 button_chat.bind("<Enter>", lambda _, bf=button_frame: self.frame_highlight_on_hover(bf))
                 button_chat.bind("<Leave>", lambda _, bf=button_frame: self.frame_clear_highlight(bf))
@@ -277,8 +320,10 @@ class TextModels(ControllerFrame):
             i = self.number_of_messages // 2 - 1
             while self.number_of_messages > self.loaded_messages < 10:
                 message = chat_data["messages"][i]
-                calculated_height_of_input = self.calculate_height_of_message(message["input"]["height"], message["input"]["width"])
-                calculated_height_of_answer = self.calculate_height_of_message(message["answer"]["height"], message["input"]["width"])
+                calculated_height_of_input = self.calculate_height_of_message(message["input"]["height"],
+                                                                              message["input"]["width"])
+                calculated_height_of_answer = self.calculate_height_of_message(message["answer"]["height"],
+                                                                               message["input"]["width"])
                 self.write_new_message(message["answer"]["content"], "ai", calculated_height_of_answer, False)
                 self.write_new_message(message["input"]["content"], "user", calculated_height_of_input, False)
                 i -= 1
@@ -298,7 +343,7 @@ class TextModels(ControllerFrame):
             h += 10
             message.configure(height=h)
 
-    def make_window_responsive(self, event):
+    def make_window_responsive(self, _):
         width = self.master.winfo_width()
         if not self.chat_space_frame.children:
             return
@@ -396,8 +441,8 @@ class TextModels(ControllerFrame):
             dark_image_path = "img/ai_icon_64.png"
 
         dark_image = Image.open(dark_image_path)
-        image = customtkinter.CTkImage(dark_image=dark_image, size=(32, 32))
-        icon_in_app = customtkinter.CTkLabel(self.chat_space_frame, image=image, text="")
+        image = CTkImage(dark_image=dark_image, size=(32, 32))
+        icon_in_app = CTkLabel(self.chat_space_frame, image=image, text="")
         icon_in_app.grid(row=row, column=0, padx=(0, 5), pady=(20, 0), sticky="ne")
 
     def write_new_message(self, message, role, height_of_message=35, is_new_message=True):
@@ -408,7 +453,11 @@ class TextModels(ControllerFrame):
             row = self.number_of_messages - self.loaded_messages
             self.loaded_messages += 1
         self.add_icon_to_message(role, row)
-        new_message = customtkinter.CTkTextbox(self.chat_space_frame, font=("New Times Roman", 15), wrap="word", height=height_of_message, activate_scrollbars=False)
+        new_message = CTkTextbox(self.chat_space_frame,
+                                 font=("New Times Roman", 15),
+                                 wrap="word",
+                                 height=height_of_message,
+                                 activate_scrollbars=False)
         new_message.grid(row=row, column=1, pady=(20, 0), sticky="new")
         self.chat_space_frame.grid_columnconfigure(1, weight=10)
         new_message.insert(tk.END, message)
@@ -619,14 +668,21 @@ class TextModels(ControllerFrame):
 
         # Load more chats:
         for i in range(now_is_loaded_chats, self.max_chats):
-            button_frame = customtkinter.CTkFrame(self.chat_history_frame, fg_color="transparent")
+            button_frame = CTkFrame(self.chat_history_frame, fg_color="transparent")
             button_frame.grid(row=i, column=0, pady=1, sticky="we")
             button_frame.grid_columnconfigure(0, weight=1)
             button_name = self.sorted_chat_list[i]
             button_name = button_name.replace(".json", "")
-            button_chat = customtkinter.CTkButton(button_frame, text=button_name, font=("New Times Roma", 12), fg_color="transparent", anchor="w", cursor="hand2")
+            button_chat = CTkButton(button_frame,
+                                    text=button_name,
+                                    font=("New Times Roma", 12),
+                                    fg_color="transparent",
+                                    anchor="w",
+                                    cursor="hand2")
             button_chat.grid(row=0, column=0, padx=(8, 0), sticky="nsew")
-            button_chat.bind("<Button-1>", lambda _, bn=button_name, bf=button_frame: self.load_other_chat_config_and_chat_story(bn, bf))
+            button_chat.bind("<Button-1>",
+                             lambda _, bn=button_name, bf=button_frame: self.load_other_chat_config_and_chat_story(bn,
+                                                                                                                   bf))
             button_chat.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
             button_chat.bind("<Enter>", lambda _, bf=button_frame: self.frame_highlight_on_hover(bf))
             button_chat.bind("<Leave>", lambda _, bf=button_frame: self.frame_clear_highlight(bf))
@@ -634,7 +690,7 @@ class TextModels(ControllerFrame):
     @staticmethod
     def set_image_for_button(button, image_path, size=(18, 18)):
         image_open = Image.open(image_path)
-        image = customtkinter.CTkImage(image_open, size=size)
+        image = CTkImage(image_open, size=size)
         button.configure(image=image)
 
     @staticmethod
@@ -654,18 +710,37 @@ class TextModels(ControllerFrame):
 
     def add_edit_and_delete_to_button(self, button_frame):
         edit_icon_open = Image.open("img/edit_icon.png")
-        edit_icon = customtkinter.CTkImage(edit_icon_open, size=(18, 18))
-        button_edit = customtkinter.CTkButton(button_frame, fg_color="transparent", hover=False, image=edit_icon, text="", width=18, height=18, cursor="hand2")
+        edit_icon = CTkImage(edit_icon_open, size=(18, 18))
+        button_edit = CTkButton(button_frame,
+                                fg_color="transparent",
+                                hover=False,
+                                image=edit_icon,
+                                text="",
+                                width=18,
+                                height=18,
+                                cursor="hand2")
         button_edit.grid(row=0, column=1, sticky="e")
-        button_edit.bind("<Enter>", lambda _, button=button_edit: self.set_image_for_button(button, "img/edit_icon_on_hover.png"))
-        button_edit.bind("<Leave>", lambda _, button=button_edit: self.set_image_for_button(button, "img/edit_icon.png"))
+        button_edit.bind("<Enter>",
+                         lambda _, button=button_edit: self.set_image_for_button(button, "img/edit_icon_on_hover.png"))
+        button_edit.bind("<Leave>", lambda _, button=button_edit: self.set_image_for_button(button,
+                                                                                            "img/edit_icon.png"))
 
         delete_icon_open = Image.open("img/delete_icon.png")
-        delete_icon = customtkinter.CTkImage(delete_icon_open, size=(18, 18))
-        button_delete = customtkinter.CTkButton(button_frame, fg_color="transparent", hover=False, image=delete_icon, text="", width=18, height=18, cursor="hand2")
+        delete_icon = CTkImage(delete_icon_open, size=(18, 18))
+        button_delete = CTkButton(button_frame,
+                                  fg_color="transparent",
+                                  hover=False,
+                                  image=delete_icon,
+                                  text="",
+                                  width=18,
+                                  height=18,
+                                  cursor="hand2")
         button_delete.grid(row=0, column=2, sticky="e")
-        button_delete.bind("<Enter>", lambda _, button=button_delete: self.set_image_for_button(button, "img/delete_icon_on_hover.png"))
-        button_delete.bind("<Leave>", lambda _, button=button_delete: self.set_image_for_button(button, "img/delete_icon.png"))
+        button_delete.bind("<Enter>",
+                           lambda _, button=button_delete: self.set_image_for_button(button,
+                                                                                     "img/delete_icon_on_hover.png"))
+        button_delete.bind("<Leave>", lambda _, button=button_delete: self.set_image_for_button(button,
+                                                                                                "img/delete_icon.png"))
 
     @staticmethod
     def delete_add_and_delete_from_button(button_frame):
@@ -721,29 +796,31 @@ class TextModels(ControllerFrame):
     def chat_space_frame_clear(self):
         self.chat_space_frame._scrollbar.grid_forget()
         self.chat_space_frame.destroy()
-        self.chat_space_frame = customtkinter.CTkScrollableFrame(self.center_frame)
+        self.chat_space_frame = CTkScrollableFrame(self.center_frame)
         self.chat_space_frame.grid(row=1, rowspan=2, column=0, columnspan=3, padx=(20, 0), pady=(20, 0), sticky="nsew")
         self.chat_space_frame.grid_columnconfigure(1, weight=10)
         self.chat_space_frame.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_up(event))
-        self.chat_space_empty_textbox = customtkinter.CTkTextbox(self.chat_space_frame, height=1, fg_color="transparent")
+        self.chat_space_empty_textbox = CTkTextbox(self.chat_space_frame, height=1, fg_color="transparent")
         self.chat_space_empty_textbox.grid(row=0, column=1, sticky="nsew")
         self.chat_space_empty_textbox.configure(state="disabled")
 
-    def on_remember_previous_messages_click(self, event):
-        with open("config.json", "r+") as config_file:
+    def on_remember_previous_messages_click(self):
+        with (open("config.json", "r+") as config_file):
             config_data = json.load(config_file)
-            self.remember_previous_messages_pref = config_data["text_models"]["user_preferences"]["remember_previous_messages"] = self.remember_previous_messages.get()
+            is_checked = self.remember_previous_messages.get()
+            self.remember_previous_messages_pref = is_checked
+            config_data["text_models"]["user_preferences"]["remember_previous_messages"] = is_checked
             write_data_to_json_file(config_data, "config.json")
 
-    def on_input_focus_in(self, event):
+    def on_input_focus_in(self):
         if self.input.get("1.0", tk.END) == "Send a message\n":
             self.input.delete("1.0", tk.END)
 
-    def on_input_focus_out(self, event):
+    def on_input_focus_out(self):
         if self.input.get("1.0", tk.END) == "\n":
             self.input.insert("1.0", "Send a message")
 
-    def temperature_sidebar_event(self, event):
+    def temperature_sidebar_event(self):
         formatted_value = format(self.temperature_sidebar.get(), '.2f')
         self.temperature_value_label.configure(text=str(formatted_value))
 
