@@ -69,8 +69,11 @@ class TextModels(ControllerFrame):
     left_chats_bar: CTkFrame
     class_container: CTkFrame
     chat_count: int
-    number_of_messages: int
+    number_of_all_messages: int
     sorted_chat_list: list[str]
+    new_buttons_limit: int
+    first_button_row: int
+    last_button_row: int
     chat_space_empty_textbox: CTkTextbox
     center_frame = CTkFrame
 
@@ -79,10 +82,11 @@ class TextModels(ControllerFrame):
         self.is_scrolled_up = None
         self.master.class_container = None
         self.current_button_frame_selected = None
-        self.loaded_messages = 0
-        self.current_messages_count = 0
-        self.number_of_messages = 0
+        self.currently_loaded_messages = 0
+        self.currently_new_messages_count = 0
+        self.number_of_all_messages = 0
         self.current_chat_row = 0
+        self.button_row = 50
         self.max_chats = 30
         self.messages = []
 
@@ -224,7 +228,7 @@ class TextModels(ControllerFrame):
             self.after(1, self.make_window_fullscreen)
         self.input.after(100, self.input.focus_set)
         self.chat_id = None
-        self.current_messages_count = 0     # 1 because, 0 is invisible textbox
+        self.currently_new_messages_count = 0     # 1 because, 0 is invisible textbox
         self.is_scrolled_up = False
         self.max_chats = 30
 
@@ -233,7 +237,7 @@ class TextModels(ControllerFrame):
         self.chat_history_frame.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
 
         # Load previous chat to chat history:
-        self.load_previous_chats_to_chat_history()
+        self.initialize_loading_chat_buttons()
         self.chat_space_frame_clear()
 
     def debug(self):
@@ -252,40 +256,65 @@ class TextModels(ControllerFrame):
     def frame_clear_highlight(button_frame):
         button_frame.configure(fg_color="transparent")
 
-    def load_previous_chats_to_chat_history(self):
+    def add_newest_chat_button(self, prompt):
+        title = self.return_title(prompt)
+        self.first_button_row -= 1
+        self.print_new_chat_button(title, self.first_button_row)
+
+    def load_older_chats_buttons(self):
+        latest_button_row = self.last_button_row - self.new_buttons_limit
+        if latest_button_row >= len(self.sorted_chat_list):
+            return
+
+        with open("chats/" + self.sorted_chat_list[latest_button_row], "r") as chat_file:
+            chat_data = json.load(chat_file)
+            button_name = chat_data["parameters"]["chat_title"]
+
+        self.print_new_chat_button(button_name, self.last_button_row)
+        self.last_button_row += 1
+
+    def print_new_chat_button(self, button_name, button_row):
+        button_frame = CTkFrame(self.chat_history_frame, fg_color="transparent")
+        button_frame.grid(row=button_row, column=0, pady=1, sticky="we")
+        button_frame.grid_columnconfigure(0, weight=1)
+        button_frame.grid_columnconfigure(1, weight=0)
+        button_frame.grid_columnconfigure(2, weight=0)
+
+        button_chat = CTkButton(button_frame,
+                                text=button_name,
+                                font=("New Times Roma", 12),
+                                fg_color="transparent",
+                                anchor="w",
+                                hover=False,
+                                cursor="hand2",
+                                border_spacing=0,
+                                border_width=0)
+        button_chat.grid(row=0, column=0, padx=(8, 0), sticky="w")
+        button_in_list_index = button_row - self.new_buttons_limit
+        button_chat.bind("<Button-1>",
+                         lambda _, br=button_in_list_index, bf=button_frame:
+                         self.load_other_chat_config_and_chat_story(br, bf))
+        button_chat.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
+        button_chat.bind("<Enter>", lambda _, bf=button_frame: self.frame_highlight_on_hover(bf))
+        button_chat.bind("<Leave>", lambda _, bf=button_frame: self.frame_clear_highlight(bf))
+
+    def initialize_loading_chat_buttons(self):
         if os.path.exists("chats"):
             chats_list = os.listdir("chats")
             self.sorted_chat_list = sorted(chats_list,
                                            key=lambda x: os.path.getmtime(os.path.join("chats", x)),
                                            reverse=True)
 
-            row = 0
-            while len(self.sorted_chat_list) > row < self.max_chats:
-                with open("chats/" + self.sorted_chat_list[row], "r") as chat_file:
+            self.button_row = 0
+            self.new_buttons_limit = 50    # limit for new chats in one session
+            while len(self.sorted_chat_list) > self.button_row < self.max_chats:
+                with open("chats/" + self.sorted_chat_list[self.button_row], "r") as chat_file:
                     chat_data = json.load(chat_file)
                     button_name = chat_data["parameters"]["chat_title"]
-                button_frame = CTkFrame(self.chat_history_frame, fg_color="transparent")
-                button_frame.grid(row=row, column=0, pady=1, sticky="we")
-                button_frame.grid_columnconfigure(0, weight=1)
-                button_frame.grid_columnconfigure(1, weight=0)
-                button_frame.grid_columnconfigure(2, weight=0)
-
-                button_chat = CTkButton(button_frame,
-                                        text=button_name,
-                                        font=("New Times Roma", 12),
-                                        fg_color="transparent",
-                                        anchor="w",
-                                        hover=False,
-                                        cursor="hand2",
-                                        border_spacing=0,
-                                        border_width=0)
-                button_chat.grid(row=0, column=0, padx=(8, 0), sticky="w")
-                button_chat.bind("<Button-1>",
-                                 lambda _, br=row, bf=button_frame: self.load_other_chat_config_and_chat_story(br, bf))
-                button_chat.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
-                button_chat.bind("<Enter>", lambda _, bf=button_frame: self.frame_highlight_on_hover(bf))
-                button_chat.bind("<Leave>", lambda _, bf=button_frame: self.frame_clear_highlight(bf))
-                row += 1
+                self.print_new_chat_button(button_name, self.button_row + self.new_buttons_limit)
+                self.button_row += 1
+            self.first_button_row = self.new_buttons_limit
+            self.last_button_row = self.button_row + self.new_buttons_limit
 
     def load_other_chat_config_and_chat_story(self, button_row, button_frame):
         self.chat_space_frame_clear()
@@ -296,7 +325,7 @@ class TextModels(ControllerFrame):
         self.current_button_frame_selected = button_frame
         self.button_highlight_on_click(button_frame)
         self.add_edit_and_delete_to_button(button_frame)
-        self.current_messages_count = 0
+        self.currently_new_messages_count = 0
         self.current_chat_row = button_row
 
         with open("chats/" + self.sorted_chat_list[button_row], "r") as chat_file:
@@ -304,7 +333,7 @@ class TextModels(ControllerFrame):
 
             # Load chat previous data:
             self.chat_id = chat_data["parameters"]["chat_id"]
-            self.number_of_messages = chat_data["parameters"]["messages_counter"]
+            self.number_of_all_messages = chat_data["parameters"]["messages_counter"]
             self.max_tokens_entry.delete(0, tkinter.END)
             self.max_tokens_entry.insert(0, chat_data["parameters"]["max_tokens"])
             self.temperature_sidebar.set(float(chat_data["parameters"]["temperature"]))
@@ -316,9 +345,9 @@ class TextModels(ControllerFrame):
             self.role_textbox.configure(state="disabled")
 
             # Load chat messages:
-            self.loaded_messages = 0
-            i = self.number_of_messages // 2 - 1
-            while self.number_of_messages > self.loaded_messages < 10:
+            self.currently_loaded_messages = 0
+            i = self.number_of_all_messages // 2 - 1
+            while self.number_of_all_messages > self.currently_loaded_messages < 10:
                 message = chat_data["messages"][i]
                 calculated_height_of_input = self.calculate_height_of_message(message["input"]["height"],
                                                                               message["input"]["width"])
@@ -447,11 +476,11 @@ class TextModels(ControllerFrame):
 
     def write_new_message(self, message, role, height_of_message=35, is_new_message=True):
         if is_new_message:
-            row = self.number_of_messages + self.current_messages_count
-            self.current_messages_count += 1
+            row = self.number_of_all_messages + self.currently_new_messages_count
+            self.currently_new_messages_count += 1
         else:
-            row = self.number_of_messages - self.loaded_messages
-            self.loaded_messages += 1
+            row = self.number_of_all_messages - self.currently_loaded_messages
+            self.currently_loaded_messages += 1
         self.add_icon_to_message(role, row)
         new_message = CTkTextbox(self.chat_space_frame,
                                  font=("New Times Roman", 15),
@@ -560,8 +589,7 @@ class TextModels(ControllerFrame):
                 json.dump(chat_file_data, chat_file)
                 self.role_textbox.configure(state="disabled")   # Disable role textbox after first message
 
-            delete_elements_in_frame(self.chat_history_frame)
-            self.load_previous_chats_to_chat_history()
+            self.add_newest_chat_button(prompt)
 
         with open(f"chats/chat_{self.chat_id}.json", "r+") as chat_file:
             chat_file_data = json.load(chat_file)
@@ -643,9 +671,9 @@ class TextModels(ControllerFrame):
             chat_data = json.load(chat_file)
 
             # Actually message:
-            i = (self.number_of_messages - self.loaded_messages) // 2 - 1
+            i = (self.number_of_all_messages - self.currently_loaded_messages) // 2 - 1
             j = 0
-            while 0 <= i <= self.number_of_messages and j < 2:
+            while 0 <= i <= self.number_of_all_messages and j < 2:
                 message = chat_data["messages"][i]
                 calculated_height_of_input = self.calculate_height_of_message(message["input"]["height"],
                                                                               message["input"]["width"])
@@ -655,37 +683,6 @@ class TextModels(ControllerFrame):
                 self.write_new_message(message["input"]["content"], "user", calculated_height_of_input, False)
                 i -= 1
                 j += 1
-
-    def load_more_chats_to_chat_history(self):
-        # Don't forget previously loaded chats
-        number_of_chats = len(self.sorted_chat_list)
-        now_is_loaded_chats = min(number_of_chats, self.max_chats)
-        if number_of_chats <= self.max_chats:
-            return
-        self.max_chats += 3
-        if self.max_chats > number_of_chats:
-            self.max_chats = number_of_chats
-
-        # Load more chats:
-        for i in range(now_is_loaded_chats, self.max_chats):
-            button_frame = CTkFrame(self.chat_history_frame, fg_color="transparent")
-            button_frame.grid(row=i, column=0, pady=1, sticky="we")
-            button_frame.grid_columnconfigure(0, weight=1)
-            button_name = self.sorted_chat_list[i]
-            button_name = button_name.replace(".json", "")
-            button_chat = CTkButton(button_frame,
-                                    text=button_name,
-                                    font=("New Times Roma", 12),
-                                    fg_color="transparent",
-                                    anchor="w",
-                                    cursor="hand2")
-            button_chat.grid(row=0, column=0, padx=(8, 0), sticky="nsew")
-            button_chat.bind("<Button-1>",
-                             lambda _, bn=button_name, bf=button_frame: self.load_other_chat_config_and_chat_story(bn,
-                                                                                                                   bf))
-            button_chat.bind("<MouseWheel>", lambda event: self.on_mouse_scroll_in_chat_history(event))
-            button_chat.bind("<Enter>", lambda _, bf=button_frame: self.frame_highlight_on_hover(bf))
-            button_chat.bind("<Leave>", lambda _, bf=button_frame: self.frame_clear_highlight(bf))
 
     @staticmethod
     def set_image_for_button(button, image_path, size=(18, 18)):
@@ -751,7 +748,7 @@ class TextModels(ControllerFrame):
 
     def on_mouse_scroll_in_chat_history(self, event):
         if event.delta < 0 and self.chat_history_frame._scrollbar._end_value >= 0.975:
-            self.load_more_chats_to_chat_history()
+            self.load_older_chats_buttons()
 
     def check_correct_input(self):
         # Check if input is empty:
@@ -784,8 +781,8 @@ class TextModels(ControllerFrame):
         print("Debug: New chat clicked")
         self.chat_id = None
         self.messages.clear()
-        self.current_messages_count = 0
-        self.number_of_messages = 0
+        self.currently_new_messages_count = 0
+        self.number_of_all_messages = 0
         self.role_textbox.configure(state="normal")
         self.chat_space_frame_clear()
         if self.current_button_frame_selected is not None:
