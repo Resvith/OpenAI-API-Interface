@@ -94,9 +94,13 @@ class TextModels(ControllerFrame):
         # Create config file if no exists:
         if not (os.path.exists("config.json")):
             self.controller.create_default_config()
+            print("Debug, created new config")
 
+        config_path = self.controller.resource_path("config.json")
+        print("Debug resource path:", config_path)
         # Load config file:
         with open("config.json", "r") as config_file:
+            print("Debug, loaded config")
             config_data = json.load(config_file)
             self.chat_count = config_data["text_models"]["chats_counter"]
             self.model_pref = config_data["text_models"]["user_preferences"]["model"]
@@ -469,7 +473,7 @@ class TextModels(ControllerFrame):
         elif role == "ai":
             dark_image_path = "img/ai_icon_64.png"
 
-        dark_image = Image.open(dark_image_path)
+        dark_image = Image.open(self.controller.resource_path(dark_image_path))
         image = CTkImage(dark_image=dark_image, size=(32, 32))
         icon_in_app = CTkLabel(self.chat_space_frame, image=image, text="")
         icon_in_app.grid(row=row, column=0, padx=(0, 5), pady=(20, 0), sticky="ne")
@@ -706,8 +710,10 @@ class TextModels(ControllerFrame):
         button_frame.children[button_chat].bind("<Leave>", lambda _, bf=button_frame: self.frame_clear_highlight(bf))
 
     def add_edit_and_delete_to_button(self, button_frame):
-        edit_icon_open = Image.open("img/edit_icon.png")
-        edit_icon = CTkImage(edit_icon_open, size=(18, 18))
+        edit_icon_path = self.controller.resource_path("img/edit_icon.png")
+        edit_icon_on_hover_path = self.controller.resource_path("img/edit_icon_on_hover.png")
+        edit_icon_opened = Image.open(edit_icon_path)
+        edit_icon = CTkImage(edit_icon_opened, size=(18, 18))
         button_edit = CTkButton(button_frame,
                                 fg_color="transparent",
                                 hover=False,
@@ -718,12 +724,14 @@ class TextModels(ControllerFrame):
                                 cursor="hand2")
         button_edit.grid(row=0, column=1, sticky="e")
         button_edit.bind("<Enter>",
-                         lambda _, button=button_edit: self.set_image_for_button(button, "img/edit_icon_on_hover.png"))
-        button_edit.bind("<Leave>", lambda _, button=button_edit: self.set_image_for_button(button,
-                                                                                            "img/edit_icon.png"))
+                         lambda _, button=button_edit: self.set_image_for_button(button, edit_icon_on_hover_path))
+        button_edit.bind("<Leave>",
+                         lambda _, button=button_edit: self.set_image_for_button(button, edit_icon_path))
 
-        delete_icon_open = Image.open("img/delete_icon.png")
-        delete_icon = CTkImage(delete_icon_open, size=(18, 18))
+        delete_icon_on_hover_path = self.controller.resource_path("img/delete_icon_on_hover.png")
+        delete_icon_path = self.controller.resource_path("img/delete_icon.png")
+        delete_icon_opened = Image.open(delete_icon_path)
+        delete_icon = CTkImage(delete_icon_opened, size=(18, 18))
         button_delete = CTkButton(button_frame,
                                   fg_color="transparent",
                                   hover=False,
@@ -734,10 +742,9 @@ class TextModels(ControllerFrame):
                                   cursor="hand2")
         button_delete.grid(row=0, column=2, sticky="e")
         button_delete.bind("<Enter>",
-                           lambda _, button=button_delete: self.set_image_for_button(button,
-                                                                                     "img/delete_icon_on_hover.png"))
-        button_delete.bind("<Leave>", lambda _, button=button_delete: self.set_image_for_button(button,
-                                                                                                "img/delete_icon.png"))
+                           lambda _, button=button_delete: self.set_image_for_button(button, delete_icon_on_hover_path))
+        button_delete.bind("<Leave>",
+                           lambda _, button=button_delete: self.set_image_for_button(button, delete_icon_path))
 
     @staticmethod
     def delete_add_and_delete_from_button(button_frame):
@@ -825,8 +832,11 @@ class TextModels(ControllerFrame):
         pass
 
     def count_tokens_for_text(self, text):
-        encoding = tiktoken.encoding_for_model(self.selected_model_options.get())
-        return len(encoding.encode(text))
+        try:
+            encoding = tiktoken.encoding_for_model(self.selected_model_options.get())
+            return len(encoding.encode(text))
+        except ValueError:
+            return 0
 
     def make_window_fullscreen(self):
         self.controller.state('zoomed')

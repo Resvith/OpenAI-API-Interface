@@ -85,11 +85,12 @@ class ImageModelsCreate(ControllerFrame):
 
     def set_default_values(self):
         # Create config file if it doesn't exist
+        # config_path = self.controller.resource_path("config.json")
         if not (os.path.exists("config.json")):
             self.controller.create_default_config()
 
         # Load config file to variables:
-        with open("config.json", "r") as config_file:
+        with open("config.json", "r+") as config_file:
             config_data = json.load(config_file)
             self.size_of_image_pref = config_data["image_models"]["user_preferences"]["size_of_image"]
             self.number_of_images_pref = config_data["image_models"]["user_preferences"]["number_of_images"]
@@ -146,50 +147,52 @@ class ImageModelsCreate(ControllerFrame):
         self.save_links_to_file(response["data"], prompt, n)
         self.save_images_to_files(response["data"], prompt, n)
 
+    def create_dir_if_not_exists(self):
+        image_models_dir_path = self.controller.resource_path("image models")
+        images_dir_path = self.controller.resource_path("image models/images")
+
+        if not os.path.exists(image_models_dir_path):
+            os.mkdir(image_models_dir_path)
+        if not os.path.exists(images_dir_path):
+            os.mkdir(images_dir_path)
+
     def save_images_to_files(self, images, prompt, n):
         # If option off then return
         if not self.save_images_pref:
             return
 
+        self.create_dir_if_not_exists()
+        links_path = self.controller.resource_path("image models/links.json")
+
         # Take id from links.json file:
-        with open("image models/links.json", "r+") as links_file:
+        with open(links_path, "r+") as links_file:
             links_data = json.load(links_file)
             link_id = links_data["id"]
-
-        # Check if path and file exists:
-        if not os.path.exists("image models"):
-            os.mkdir("image models")
-        if not os.path.exists("image models/images"):
-            os.mkdir("image models/images")
 
         # Save images to existing file:
         for i in range(n):
             response = requests.get(images[i]["url"])
             if response.status_code == 200:
-                with open(f"image models/images/{link_id+i}_{prompt}.png", "wb") as file:
+                image_file_path = self.controller.resource_path(f"image models/images/{link_id+i}_{prompt}.png")
+                with open(image_file_path, "wb") as file:
                     file.write(response.content)
 
         # Update id in links.json file:
-        with open("image models/links.json", "r+") as links_file:
+        with open(links_path, "r+") as links_file:
             links_data = json.load(links_file)
             links_data["id"] = link_id + n
-            write_data_to_json_file(links_data, "image models/links.json")
+            write_data_to_json_file(links_data, links_path)
 
     def save_links_to_file(self, links, prompt, n):
         # If option off then return
         if not self.save_links_pref:
             return
 
-        # Check if path and file exists:
-        if not os.path.exists("image models"):
-            os.mkdir("image models")
-        if not os.path.exists("image models/links.json"):
-            with open("image models/links.json", "a"):
-                initialize_file = {"id": 0, "links": {}}
-                write_data_to_json_file(initialize_file, "image models/links.json")
+        self.create_dir_if_not_exists()
+        links_path = self.controller.resource_path("image models/links.json")
 
         # Save links to existing file:
-        with open("image models/links.json", "r+") as links_file:
+        with open(links_path, "r+") as links_file:
             links_data = json.load(links_file)
             link_id = links_data["id"]
 
@@ -202,25 +205,28 @@ class ImageModelsCreate(ControllerFrame):
                 link_id += 1
 
             links_data["id"] = link_id
-            write_data_to_json_file(links_data, "image models/links.json")
+            write_data_to_json_file(links_data, links_path)
 
     def on_size_radiobutton_change(self):
-        with open("config.json", "r+") as config_file:
+        config_path = self.controller.resource_path("config.json")
+        with open(config_path, "r+") as config_file:
             config_data = json.load(config_file)
             self.size_of_image_pref = config_data["image_models"]["user_preferences"]["size_of_image"] = self.size.get()
-            write_data_to_json_file(config_data, "config.json")
+            write_data_to_json_file(config_data, config_path)
 
     def on_save_image_click(self, event):
-        with open("config.json", "r+") as config_file:
+        config_path = self.controller.resource_path("config.json")
+        with open(config_path, "r+") as config_file:
             config_data = json.load(config_file)
             self.save_images_pref = config_data["image_models"]["user_preferences"]["save_images"] = self.save_images.get()
-            write_data_to_json_file(config_data, "config.json")
+            write_data_to_json_file(config_data, config_path)
 
     def on_save_links_click(self, event):
-        with open("config.json", "r+") as config_file:
+        config_path = self.controller.resource_path("config.json")
+        with open(config_path, "r+") as config_file:
             config_data = json.load(config_file)
             self.save_links_pref = config_data["image_models"]["user_preferences"]["save_links"] = self.save_links.get()
-            write_data_to_json_file(config_data, "config.json")
+            write_data_to_json_file(config_data, config_path)
 
     def go_to_menu(self, event):
         self.controller.show_frame("Menu")

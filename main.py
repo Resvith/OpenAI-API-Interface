@@ -1,4 +1,6 @@
 import json
+import sys
+import os
 
 import customtkinter
 
@@ -93,6 +95,19 @@ class App(customtkinter.CTk):
 
         with open("config.json", "w") as json_file:
             json.dump(default_config_data, json_file)
+
+    @staticmethod
+    def resource_path(relative_path):
+        # if hasattr(sys, "_MEIPASS"):
+        #     return os.path.join(sys._MEIPASS, relative_path)
+        # else:
+        #     return relative_path
+        try:
+            base_path = sys._MEIPASS
+        except Exception:
+            base_path = os.path.abspath(".")
+
+        return os.path.join(base_path, relative_path)
 
     def change_geometry(self, width, height):
         self.geometry(f"{width}x{height}")

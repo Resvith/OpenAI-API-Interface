@@ -69,15 +69,15 @@ class ImageModelsEdit(ControllerFrame):
         self.image_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
 
         # Buttons to select and edit image:
-        add_image_dark_mode = Image.open("img\\add_image_button_dark_mode.png")
-        add_image_light_mode = Image.open("img\\add_image_button_light_mode.png")
-        add_image_image = customtkinter.CTkImage(add_image_light_mode, add_image_dark_mode, size=(512, 512))
+        add_image_dark_mode_path = Image.open(self.controller.resource_path("img\\add_image_button_dark_mode.png"))
+        add_image_light_mode_path = Image.open(self.controller.resource_path("img\\add_image_button_light_mode.png"))
+        add_image_image = customtkinter.CTkImage(add_image_light_mode_path, add_image_dark_mode_path, size=(512, 512))
         self.add_file_button = customtkinter.CTkButton(self.image_frame, text="", image=add_image_image, fg_color="transparent", command=self.on_add_file_button_click)
         self.add_file_button.grid(row=0, column=0, sticky="w", padx=10, pady=10)
 
-        add_mask_dark_mode = Image.open("img\\add_mask_button_dark_mode.png")
-        add_mask_light_mode = Image.open("img\\add_mask_button_light_mode.png")
-        add_mask_image = customtkinter.CTkImage(add_mask_light_mode, add_mask_dark_mode, size=(512, 512))
+        add_mask_dark_mode_path = Image.open(self.controller.resource_path("img\\add_mask_button_dark_mode.png"))
+        add_mask_light_mode_path = Image.open(self.controller.resource_path("img\\add_mask_button_light_mode.png"))
+        add_mask_image = customtkinter.CTkImage(add_mask_light_mode_path, add_mask_dark_mode_path, size=(512, 512))
         self.add_mask_button = customtkinter.CTkButton(self.image_frame, text="", image=add_mask_image, fg_color="transparent", command=self.on_add_mask_button_click)
         self.add_mask_button.grid(row=0, column=1, sticky="w", padx=10, pady=10)
 
@@ -140,7 +140,7 @@ class ImageModelsEdit(ControllerFrame):
         MaskEditorWindow()
 
         # Load mask image:
-        img_data = Image.open("image models\\temp.png")
+        img_data = Image.open(self.controller.resource_path("image models\\temp.png"))
         image = customtkinter.CTkImage(img_data, size=(512, 512))
         image_in_app = customtkinter.CTkLabel(self.image_frame, image=image, text="")
         image_in_app.grid(row=0, column=1, sticky="nsew")
@@ -171,18 +171,20 @@ class ImageModelsEdit(ControllerFrame):
             print("Request is not possible")
             return
 
+        img_path = self.controller.resource_path("image models\\temp.png")
         response = openai.Image.create_edit(
-            image=open("image models\\temp.png", "rb"),
+            image=open(img_path, "rb"),
             prompt=input_text,
             n=number_of_variations,
             size=size_of_generated_image
         )
 
-        os.remove("image models\\temp.png")
+        os.remove(self.controller.resource_path("image models\\temp.png"))
         print(response["data"][0]["url"])
 
     def on_add_file_button_click(self):
-        self.file_path = filedialog.askopenfilename(title="Choose image file", filetypes=[("Image files", ".jpg .jpeg .png")])
+        self.file_path = filedialog.askopenfilename(title="Choose image file",
+                                                    filetypes=[("Image files", ".jpg .jpeg .png")])
         if not self.file_path:
             return
 
@@ -197,11 +199,12 @@ class ImageModelsEdit(ControllerFrame):
 
     def set_default_values(self):
         # Create config file if it doesn't exist
+        # config_path = self.controller.resource_path("config.json")
         if not (os.path.exists("config.json")):
             self.controller.create_default_config()
 
         # Load config file to variables:
-        with open("config.json", "r") as config_file:
+        with open("config.json", "r") as json_file:
             pass
 
     def go_to_menu(self):
@@ -209,7 +212,7 @@ class ImageModelsEdit(ControllerFrame):
         self.controller.change_geometry(400, 400)
         self.controller.change_min_size(400, 400)
         self.controller.is_resizable(False)
-        delete_temp_file("image models\\temp.png")
+        delete_temp_file(self.controller.resource_path("image models\\temp.png"))
 
 
 class MaskEditorWindow:
