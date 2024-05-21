@@ -61,7 +61,7 @@ class AudioModels(ControllerFrame):
 
         self.select_file_label.configure(text="Selected: " + self.file_path.split("/")[-1])
 
-    def on_send_button_click(self):
+    def on_send_button_click(self, event):
         if not self.file_path:
             return
 
@@ -75,7 +75,7 @@ class AudioModels(ControllerFrame):
         if self.choose_var.get() == "transcribe":
             response = openai.Audio.transcribe("whisper-1", audio_file)
         elif self.choose_var.get() == "translation":
-            response = openai.Audio.translate("whisper-1", audio_file, target_language="es")
+            response = openai.Audio.translate("whisper-1", audio_file)
 
         self.textbox.insert(tk.END, response["text"])
 

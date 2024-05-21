@@ -94,13 +94,10 @@ class TextModels(ControllerFrame):
         # Create config file if no exists:
         if not (os.path.exists("config.json")):
             self.controller.create_default_config()
-            print("Debug, created new config")
 
         config_path = self.controller.resource_path("config.json")
-        print("Debug resource path:", config_path)
         # Load config file:
         with open("config.json", "r") as config_file:
-            print("Debug, loaded config")
             config_data = json.load(config_file)
             self.chat_count = config_data["text_models"]["chats_counter"]
             self.model_pref = config_data["text_models"]["user_preferences"]["model"]
@@ -172,7 +169,9 @@ class TextModels(ControllerFrame):
                                                             "gpt-3.5-turbo-16k",
                                                             "gpt-4",
                                                             "gpt-4-0314",
-                                                            "gpt-4-0613"],
+                                                            "gpt-4-0613",
+                                                            "gpt-4-1106-preview",
+                                                            "gpt-3.5-turbo-1106"],
                                                     command=self.change_model_event)
         self.selected_model_options.grid(row=0, column=1, padx=20, pady=(10, 10), sticky='nw')
 
